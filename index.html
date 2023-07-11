@@ -44,6 +44,20 @@
         }
       });
 
+      socket.on('connection',(hello) =>{
+        var item = document.createElement('li');
+        item.textContent = hello;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      })
+
+      socket.on('disconnection',(bye) =>{
+        var item = document.createElement('li');
+        item.textContent = bye;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      })
+
       socket.on('chatLogs', (logs) =>{
         var item = document.createElement('li');
         item.textContent = logs;

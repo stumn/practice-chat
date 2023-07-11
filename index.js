@@ -13,14 +13,19 @@ app.get('/', (req, res) => {
 // io は接続の全体、socketは接続してきた1つのコマについて
 io.on('connection', (socket) => {
   console.log('a user connected');
+  io.emit('connection','A new user connected! Hello!');
+
   socket.on('disconnect', () => {
     console.log('user disconnected');
+    io.emit('disconnection','A user disconnected! Bye!');
   });
+
   let chatLogs;
   socket.on('nickname', (nickname) => {
     console.log(nickname);
     chatLogs += nickname;
   });
+
   socket.on('chat message', (msg) => {
     console.log(msg);
     chatLogs +=': ';
@@ -29,7 +34,7 @@ io.on('connection', (socket) => {
     io.emit('chatLogs', chatLogs);
     chatLogs = '';
   });
- 
+
 });
 
 server.listen(3000, () => {
