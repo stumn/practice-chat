@@ -12,27 +12,33 @@ app.get('/', (req, res) => {
 
 // io は接続の全体、socketは接続してきた1つのコマについて
 io.on('connection', (socket) => {
+  // コネクト
   console.log('a user connected');
-  io.emit('connection','A new user connected! Hello!');
-
-  socket.on('disconnect', () => {
-    console.log('user disconnected');
-    io.emit('disconnection','A user disconnected! Bye!');
-  });
-
-  let chatLogs;
+  // １ログイン受付　-> ２
+  socket.on('login', name => {
+    console.log(name + ' loginned.');
+    const welcome_msg = name +'さん、いらっしゃい！'
+    io.emit('welcome', welcome_msg);
+  })
+  // ３チャット内容の作成　ニックネーム
+  let chatLogs = '[';
   socket.on('nickname', (nickname) => {
     console.log(nickname);
     chatLogs += nickname;
   });
-
+  // ３チャット内容の作成　メッセージ　＆送信
   socket.on('chat message', (msg) => {
     console.log(msg);
-    chatLogs +=': ';
+    chatLogs +='] ';
     chatLogs += msg;
-    chatLogs = chatLogs.replace('undefined', 'はじめましての');
+    // chatLogs = chatLogs.replace('undefined', 'はじめましての');
     io.emit('chatLogs', chatLogs);
     chatLogs = '';
+  });
+  // ディスコネクト
+  socket.on('disconnect', () => {
+    console.log('a user disconnected');
+    io.emit('disconnection','1人抜けたみたい、またね！');
   });
 
 });
