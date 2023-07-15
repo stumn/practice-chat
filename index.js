@@ -21,10 +21,10 @@ io.on('connection', (socket) => {
     io.emit('welcome', welcome_msg);
   })
   // ３チャット内容の作成　ニックネーム
-  let chatLogs = '[';
+  let chatLogs;
   socket.on('nickname', (nickname) => {
     console.log(nickname);
-    chatLogs += nickname;
+    chatLogs = '[' + nickname;
   });
   // ３チャット内容の作成　メッセージ　＆送信
   socket.on('chat message', (msg) => {
