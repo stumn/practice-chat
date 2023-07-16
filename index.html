@@ -3,16 +3,20 @@
 
 <head>
   <meta charset="UTF-8">
-  <!-- <link rel="stylesheet" href="/style.css"> -->
   <title>Socket.IO chat</title>
   <style>
-    h1 {
-      background-color:aquamarine;
+    header{
+      background-color: #B9DFFF;
+      color: #385CA8;
     }
+
+    h1 {display: inline;}
+    h3{display: inline;}
 
     body {
       margin: 0;
       padding-bottom: 3rem;
+      background-color: #B9DFFF;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
@@ -32,7 +36,7 @@
     #nickname {
       border: none;
       padding: 0 1rem;
-      flex-grow: 1;
+      flex-basis: 30%;
       border-radius: 2rem;
       margin: 0.25rem;
     }
@@ -40,7 +44,7 @@
     #input {
       border: none;
       padding: 0 1rem;
-      flex-grow: 1;
+      flex-basis: 70%;
       border-radius: 2rem;
       margin: 0.25rem;
     }
@@ -50,7 +54,7 @@
     }
 
     #form>button {
-      background: #333;
+      background: #385CA8;
       border: none;
       padding: 0 1rem;
       margin: 0.25rem;
@@ -70,21 +74,30 @@
     }
 
     #messages>li:nth-child(odd) {
-      background: #efefef;
+      background: #fff;
     }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>PRACTICE chat</h1>
-    <p id="login-name"></p>
-    <h2>(Online) Members</h2>
-    <p id="online-members"></p>
+    <div>
+      <h1>PRACTICE chat </h1>　ログイン中：<span id="login-name"></span>
+    </div>
+    <div>
+      <br>
+      <h3>(Online) Members: </h3><span id="online-members"></span>
+    </div>
+
   </header>
   <!-- メインのリストと、フォーム -->
   <main>
-    <ul id="messages"></ul>
+    <br>
+    <ul id="messages">
+      <li>こんにちは</li>
+      <li>やっほう</li>
+      <li>ふっふう</li>
+    </ul>
     <!-- ↓formタグのactionは送信先を指定 セキュリティとかの理由でactionの""は空白にする-->
     <form id="form" action="">
       <input id="nickname" name="name" placeholder="ニックネーム">
@@ -105,7 +118,7 @@
     // １プロンプト　ログイン送信
     const name = prompt("名前を入力してください", "");
     socket.emit('login', name);
-    document.getElementById('login-name').textContent = 'ログイン中： ' + name; 
+    document.getElementById('login-name').textContent = 'ログイン中： ' + name;
 
     // メッセージリスト作成ファンクション
     function addMessage(msg) {
@@ -118,7 +131,7 @@
     // ２ログイン受信　いらっしゃい！
     socket.on('welcome', (welcome, onlines) => {
       addMessage(welcome);
-      document.getElementById('online-members').textContent = onlines; 
+      document.getElementById('online-members').textContent = onlines;
     });
 
     // ３チャット送信
