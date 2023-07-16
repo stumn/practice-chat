@@ -9,16 +9,22 @@ const io = new Server(server);          //http server を引数に、socket.io�
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
-
+// オンラインメンバー配列
+let onlines = [];
 // io は接続の全体、socketは接続してきた1つのコマについて
 io.on('connection', (socket) => {
   // コネクト
   console.log('a user connected');
   // １ログイン受付　-> ２
   socket.on('login', name => {
+    if(name === '' || name === null){
+      name = '匿名';
+    }
     console.log(name + ' loginned.');
     const welcome_msg = name +'さん、いらっしゃい！'
-    io.emit('welcome', welcome_msg);
+    onlines.push(name);
+    console.log(onlines);
+    io.emit('welcome', welcome_msg, onlines);
   })
   // ３チャット内容の作成　ニックネーム
   let chatLogs;
@@ -38,7 +44,7 @@ io.on('connection', (socket) => {
   // ディスコネクト
   socket.on('disconnect', () => {
     console.log('a user disconnected');
-    io.emit('disconnection','1人抜けたみたい、またね！');
+    io.emit('disconnection','1人抜けたみたい、またね！',onlines);
   });
 
 });

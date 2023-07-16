@@ -6,72 +6,82 @@
   <!-- <link rel="stylesheet" href="/style.css"> -->
   <title>Socket.IO chat</title>
   <style>
-     body {
-   margin: 0;
-   padding-bottom: 3rem;
-   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
- }
+    h1 {
+      background-color:aquamarine;
+    }
 
- #form {
-   background: rgba(0, 0, 0, 0.15);
-   padding: 0.25rem;
-   position: fixed;
-   bottom: 0;
-   left: 0;
-   right: 0;
-   display: flex;
-   height: 3rem;
-   box-sizing: border-box;
-   backdrop-filter: blur(10px);
- }
+    body {
+      margin: 0;
+      padding-bottom: 3rem;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
 
- #nickname {
-   border: none;
-   padding: 0 1rem;
-   flex-grow: 1;
-   border-radius: 2rem;
-   margin: 0.25rem;
- }
+    #form {
+      background: rgba(0, 0, 0, 0.15);
+      padding: 0.25rem;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      height: 3rem;
+      box-sizing: border-box;
+      backdrop-filter: blur(10px);
+    }
 
- #input {
-   border: none;
-   padding: 0 1rem;
-   flex-grow: 1;
-   border-radius: 2rem;
-   margin: 0.25rem;
- }
+    #nickname {
+      border: none;
+      padding: 0 1rem;
+      flex-grow: 1;
+      border-radius: 2rem;
+      margin: 0.25rem;
+    }
 
- #input:focus {
-   outline: none;
- }
+    #input {
+      border: none;
+      padding: 0 1rem;
+      flex-grow: 1;
+      border-radius: 2rem;
+      margin: 0.25rem;
+    }
 
- #form>button {
-   background: #333;
-   border: none;
-   padding: 0 1rem;
-   margin: 0.25rem;
-   border-radius: 3px;
-   outline: none;
-   color: #fff;
- }
+    #input:focus {
+      outline: none;
+    }
 
- #messages {
-   list-style-type: none;
-   margin: 0;
-   padding: 0;
- }
+    #form>button {
+      background: #333;
+      border: none;
+      padding: 0 1rem;
+      margin: 0.25rem;
+      border-radius: 3px;
+      outline: none;
+      color: #fff;
+    }
 
- #messages>li {
-   padding: 0.5rem 1rem;
- }
+    #messages {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
 
- #messages>li:nth-child(odd) {
-   background: #efefef;
- }
+    #messages>li {
+      padding: 0.5rem 1rem;
+    }
+
+    #messages>li:nth-child(odd) {
+      background: #efefef;
+    }
   </style>
 </head>
 
 <body>
+  <header>
+    <h1>PRACTICE chat</h1>
+    <p id="login-name"></p>
+    <h2>(Online) Members</h2>
+    <p id="online-members"></p>
+  </header>
   <!-- メインのリストと、フォーム -->
   <main>
     <ul id="messages"></ul>
@@ -86,27 +96,29 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    
+
     //フォーム系　取得 
     const form = document.getElementById('form');
     const nickname = document.getElementById('nickname');
     const input = document.getElementById('input');
 
     // １プロンプト　ログイン送信
-    const name = prompt("名前を入力してください", "");    
+    const name = prompt("名前を入力してください", "");
     socket.emit('login', name);
+    document.getElementById('login-name').textContent = 'ログイン中： ' + name; 
 
     // メッセージリスト作成ファンクション
-    function addMessage(msg){
+    function addMessage(msg) {
       const item = document.createElement('li');
       item.textContent = msg;
       messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
     }
 
-    // ２ログイン完了　いらっしゃい！
-    socket.on('welcome', (welcome) => {
+    // ２ログイン受信　いらっしゃい！
+    socket.on('welcome', (welcome, onlines) => {
       addMessage(welcome);
+      document.getElementById('online-members').textContent = onlines; 
     });
 
     // ３チャット送信
@@ -121,12 +133,12 @@
       }
     });
 
-    // チャット送信完了 ->みんなに表示
+    // チャット受信
     socket.on('chatLogs', (logs) => {
       addMessage(logs);
     });
 
-    // ディスコネクト
+    // ディスコネクト受信
     socket.on('disconnection', (bye) => {
       addMessage(bye);
     });
