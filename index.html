@@ -5,19 +5,32 @@
   <meta charset="UTF-8">
   <title>Socket.IO chat</title>
   <style>
-    header{
+    header {
       background-color: #B9DFFF;
       color: #385CA8;
     }
 
-    h1 {display: inline;}
-    h3{display: inline;}
+    h1 {
+      display: inline;
+    }
+
+    h3 {
+      display: inline;
+    }
 
     body {
       margin: 0;
       padding-bottom: 3rem;
       background-color: #B9DFFF;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    #status {
+      padding: 1rem;
+      position: fixed;
+      bottom: 2.5rem;
+      background-color: beige;
+      border-radius: 1rem;
     }
 
     #form {
@@ -74,7 +87,7 @@
     }
 
     #messages>li:nth-child(odd) {
-      background: #fff;
+      background: ivory;
     }
   </style>
 </head>
@@ -82,7 +95,7 @@
 <body>
   <header>
     <div>
-      <h1>PRACTICE chat </h1>　ログイン中：<span id="login-name"></span>
+      <h1>PRACTICE chat </h1><span id="login-name"></span>
     </div>
     <div>
       <br>
@@ -90,14 +103,13 @@
     </div>
 
   </header>
-  <!-- メインのリストと、フォーム -->
+
   <main>
     <br>
-    <ul id="messages">
-      <li>こんにちは</li>
-      <li>やっほう</li>
-      <li>ふっふう</li>
-    </ul>
+    <ul id="messages"></ul>
+    <div>
+      <span id="status"></span>
+    </div>
     <!-- ↓formタグのactionは送信先を指定 セキュリティとかの理由でactionの""は空白にする-->
     <form id="form" action="">
       <input id="nickname" name="name" placeholder="ニックネーム">
@@ -114,6 +126,7 @@
     const form = document.getElementById('form');
     const nickname = document.getElementById('nickname');
     const input = document.getElementById('input');
+    const status = document.getElementById('status');
 
     // １プロンプト　ログイン送信
     const name = prompt("名前を入力してください", "");
@@ -133,6 +146,33 @@
       addMessage(welcome);
       document.getElementById('online-members').textContent = onlines;
     });
+
+    const typingUsers = new Map();
+    setInterval(updateStatus, 1000);
+
+    // 入力中　->送信
+    input.addEventListener('input', (event) => {
+      socket.emit('typing');
+    });
+    // 入力中　->受信＆表示
+    socket.on('typing', (name) => {
+      typingUsers.set(name, new Date());
+    })
+
+    function updateStatus() {
+      for (let [name, date] of typingUsers) {
+        if (Date.now() - date > 3000) {
+          typingUsers.delete(name);
+        }
+      }
+
+      if (typingUsers.size > 0) {
+        status.textContent = "typing: " + Array.from(typingUsers.keys()).join(", ");
+      }
+      else {
+        status.textContent = "";
+      }
+    }
 
     // ３チャット送信
     form.addEventListener('submit', (event) => {

@@ -14,18 +14,25 @@ let onlines = [];
 // io は接続の全体、socketは接続してきた1つのコマについて
 io.on('connection', (socket) => {
   // コネクト
-  console.log('a user connected');
+  console.log(socket.id + ' connected');
   // １ログイン受付　-> ２
   socket.on('login', name => {
-    if(name === '' || name === null){
+    if (name === '' || name === null) {
       name = '匿名';
     }
     console.log(name + ' loginned.');
-    const welcome_msg = name +'さん、いらっしゃい！'
+    const welcome_msg = name + 'さん、いらっしゃい！'
     onlines.push(name);
     console.log(onlines);
     io.emit('welcome', welcome_msg, onlines);
   })
+
+  // 入力中
+  socket.on('typing', () => {
+    console.log('typing');
+    io.emit('typing');
+  });
+
   // ３チャット内容の作成　ニックネーム
   let chatLogs;
   socket.on('nickname', (nickname) => {
@@ -35,7 +42,7 @@ io.on('connection', (socket) => {
   // ３チャット内容の作成　メッセージ　＆送信
   socket.on('chat message', (msg) => {
     console.log(msg);
-    chatLogs +='] ';
+    chatLogs += '] ';
     chatLogs += msg;
     // chatLogs = chatLogs.replace('undefined', 'はじめましての');
     io.emit('chatLogs', chatLogs);
@@ -44,7 +51,7 @@ io.on('connection', (socket) => {
   // ディスコネクト
   socket.on('disconnect', () => {
     console.log('a user disconnected');
-    io.emit('disconnection','1人抜けたみたい、またね！',onlines);
+    io.emit('disconnection', '1人抜けたみたい、またね！');
   });
 
 });
