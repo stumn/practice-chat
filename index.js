@@ -11,6 +11,8 @@ app.get('/', (req, res) => {
 });
 // オンラインメンバー配列
 let onlines = [];
+let onlines_name = [];
+
 // io は接続の全体、socketは接続してきた1つのコマについて
 io.on('connection', (socket) => {
   // コネクト
@@ -20,16 +22,18 @@ io.on('connection', (socket) => {
     if (name === '' || name === null) {
       name = '匿名';
     }
-    console.log(name + ' loginned.');
+    console.log( socket.id + name + ' loginned.');
     const welcome_msg = name + 'さん、いらっしゃい！'
-    onlines.push(name);
-    console.log(onlines);
-    io.emit('welcome', welcome_msg, onlines);
-  })
+    onlines.push({id: socket.id, name: name});
+    onlines_name.push(name);
+    // console.log(onlines);
+    io.emit('welcome', welcome_msg, onlines_name);
+  });
 
   // 入力中
   socket.on('typing', () => {
-    console.log('typing');
+    console.log(socket.id + ' is typing');
+    // onlines.name を呼び出して、typing とともに送信
     io.emit('typing');
   });
 
@@ -39,6 +43,7 @@ io.on('connection', (socket) => {
     console.log(nickname);
     chatLogs = '[' + nickname;
   });
+
   // ３チャット内容の作成　メッセージ　＆送信
   socket.on('chat message', (msg) => {
     console.log(msg);
@@ -48,10 +53,14 @@ io.on('connection', (socket) => {
     io.emit('chatLogs', chatLogs);
     chatLogs = '';
   });
+
   // ディスコネクト
   socket.on('disconnect', () => {
-    console.log('a user disconnected');
+    console.log(socket.id + ' disconnected');
     io.emit('disconnection', '1人抜けたみたい、またね！');
+    // onlines　から削除
+    // onlines_name から削除
+    // onlines_name を更新して送信？
   });
 
 });

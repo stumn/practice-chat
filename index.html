@@ -142,9 +142,9 @@
     }
 
     // ２ログイン受信　いらっしゃい！
-    socket.on('welcome', (welcome, onlines) => {
+    socket.on('welcome', (welcome, onlines_name) => {
       addMessage(welcome);
-      document.getElementById('online-members').textContent = onlines;
+      document.getElementById('online-members').textContent = onlines_name;
     });
 
     const typingUsers = new Map();
