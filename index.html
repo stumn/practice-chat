@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Socket.IO chat</title>
+  <title>PRACTICE chat</title>
   <style>
     header {
       background-color: #B9DFFF;
@@ -99,14 +99,15 @@
     </div>
     <div>
       <br>
-      <h3>(Online) Members: </h3><span id="online-members"></span>
+      <h3>Online Members: </h3><span id="onlines"></span>
     </div>
 
   </header>
 
   <main>
-    <br>
-    <ul id="messages"></ul>
+    <div>
+      <ul id="messages"></ul>
+    </div>
     <div>
       <span id="status"></span>
     </div>
@@ -131,7 +132,7 @@
     // １プロンプト　ログイン送信
     const name = prompt("名前を入力してください", "");
     socket.emit('login', name);
-    document.getElementById('login-name').textContent = 'ログイン中： ' + name;
+    document.getElementById('login-name').textContent = 'ログイン名： ' + name;
 
     // メッセージリスト作成ファンクション
     function addMessage(msg) {
@@ -139,12 +140,16 @@
       item.textContent = msg;
       messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
-    }
+    };
 
-    // ２ログイン受信　いらっしゃい！
-    socket.on('welcome', (welcome, onlines_name) => {
+    // オンラインメンバー
+    socket.on('onlines', (onlines) =>{
+      document.getElementById('onlines').textContent = onlines;
+    });
+
+    // いらっしゃい！
+    socket.on('welcome', (welcome) => {
       addMessage(welcome);
-      document.getElementById('online-members').textContent = onlines_name;
     });
 
     const typingUsers = new Map();

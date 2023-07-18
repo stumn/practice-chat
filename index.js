@@ -11,56 +11,56 @@ app.get('/', (req, res) => {
 });
 // オンラインメンバー配列
 let onlines = [];
-let onlines_name = [];
+let id_onlines = [];
 
 // io は接続の全体、socketは接続してきた1つのコマについて
 io.on('connection', (socket) => {
-  // コネクト
   console.log(socket.id + ' connected');
-  // １ログイン受付　-> ２
+
   socket.on('login', name => {
     if (name === '' || name === null) {
       name = '匿名';
     }
-    console.log( socket.id + name + ' loginned.');
+
+    onlines.push(name);
+    id_onlines.push({ id: socket.id, name: name });
+    io.emit('onlines', onlines);
+
     const welcome_msg = name + 'さん、いらっしゃい！'
-    onlines.push({id: socket.id, name: name});
-    onlines_name.push(name);
-    // console.log(onlines);
-    io.emit('welcome', welcome_msg, onlines_name);
+    io.emit('welcome', welcome_msg);
+
+    socket.on('typing', () => {
+      console.log(name + ' is typing');
+      io.emit('typing', name);
+    });
+
+    let chatLogs;
+
+    socket.on('nickname', (nickname) => {
+      chatLogs = '[' + nickname;
+    });
+
+    socket.on('chat message', (msg) => {
+      chatLogs += '] ';
+      chatLogs += msg;
+      io.emit('chatLogs', chatLogs);
+      chatLogs = '';
+    });
+
   });
 
-  // 入力中
-  socket.on('typing', () => {
-    console.log(socket.id + ' is typing');
-    // onlines.name を呼び出して、typing とともに送信
-    io.emit('typing');
-  });
-
-  // ３チャット内容の作成　ニックネーム
-  let chatLogs;
-  socket.on('nickname', (nickname) => {
-    console.log(nickname);
-    chatLogs = '[' + nickname;
-  });
-
-  // ３チャット内容の作成　メッセージ　＆送信
-  socket.on('chat message', (msg) => {
-    console.log(msg);
-    chatLogs += '] ';
-    chatLogs += msg;
-    // chatLogs = chatLogs.replace('undefined', 'はじめましての');
-    io.emit('chatLogs', chatLogs);
-    chatLogs = '';
-  });
-
-  // ディスコネクト
   socket.on('disconnect', () => {
-    console.log(socket.id + ' disconnected');
-    io.emit('disconnection', '1人抜けたみたい、またね！');
-    // onlines　から削除
-    // onlines_name から削除
-    // onlines_name を更新して送信？
+    let targetId = socket.id;
+    let targetName = id_onlines.find(obj => obj.id === targetId)?.name;
+    let onlinesWithoutTarget = onlines.filter(val => val !== targetName);
+    onlines = onlinesWithoutTarget;
+
+    console.log(onlines);
+    io.emit('onlines', onlines);
+
+    console.log(targetName + ' (' + socket.id + ') disconnected');
+    io.emit('disconnection', targetName + ' さんが ふろりだ したみたい、またね！');
+
   });
 
 });
