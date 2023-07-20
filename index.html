@@ -101,7 +101,6 @@
       <br>
       <h3>Online Members: </h3><span id="onlines"></span>
     </div>
-
   </header>
 
   <main>
@@ -143,7 +142,7 @@
     };
 
     // オンラインメンバー
-    socket.on('onlines', (onlines) =>{
+    socket.on('onlines', (onlines) => {
       document.getElementById('onlines').textContent = onlines;
     });
 
@@ -182,13 +181,16 @@
     // ３チャット送信
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      if (nickname.value) {
-        socket.emit('nickname', nickname.value);
-      }
-      if (input.value) {
-        socket.emit('chat message', input.value);
-        input.value = '';
-      }
+      let chatMessage = '[' + nickname.value + '] ' + input.value;
+      socket.emit('chat message', chatMessage);
+      input.value = '';
+    });
+
+    socket.on('pastLogs', (Array) => {
+      Array.forEach(element => {
+        addMessage(element.msg);
+      });
+      addMessage('-----⇊ ここから参加 ⇊-----');
     });
 
     // チャット受信
