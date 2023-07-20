@@ -11,6 +11,9 @@ mongoose.connect(MONGODB_URL, { useNewUrlParser: true })
     console.log('MongoDB connected');
     // サーバーを起動するなど、データベース接続後の処理を実行
   })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+  });
 
 // オプション設定
 const options = {
