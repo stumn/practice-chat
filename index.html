@@ -29,6 +29,7 @@
       padding: 1rem;
       position: fixed;
       bottom: 2.5rem;
+      right: 0;
       background-color: beige;
       border-radius: 1rem;
     }
@@ -107,7 +108,7 @@
     <!-- ↓formタグのactionは送信先を指定 セキュリティとかの理由でactionの""は空白にする-->
     <form id="form" action="">
       <input id="nickname" name="name" placeholder="ニックネーム">
-      <input id="input" autocomplete="off" placeholder="メッセージ" />
+      <input id="input" autocomplete="off" placeholder="メッセージ" pattern=".*\S+.*" required>
       <button>Send</button>
     </form>
   </main>
@@ -165,7 +166,7 @@
       }
 
       if (typingUsers.size > 0) {
-        status.textContent = "typing: " + Array.from(typingUsers.keys()).join(", ");
+        status.textContent = Array.from(typingUsers.keys()).join("さん, ") + 'さんが入力しています';
       }
       else {
         status.textContent = "";
@@ -175,8 +176,7 @@
     // ３チャット送信
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      let chatMessage = '[' + nickname.value + '] ' + input.value;
-      socket.emit('chat message', chatMessage);
+      socket.emit('chat message', nickname.value, input.value);
       input.value = '';
     });
 

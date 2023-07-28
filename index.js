@@ -9,7 +9,6 @@ const MONGODB_URL = process.env.MONGODB_URL;
 mongoose.connect(MONGODB_URL, { useNewUrlParser: true })
   .then(() => {
     console.log('MongoDB connected');
-    // サーバーを起動するなど、データベース接続後の処理を実行
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);
@@ -80,9 +79,12 @@ io.on('connection', async (socket) => {
       io.emit('typing', name);
     });
 
-    socket.on('chat message', async (msg) => {
-      io.emit('chatLogs', msg);
-
+    socket.on('chat message', async (nickname, msg) => {
+      if (/^\s*$/.test(nickname)) {
+        nickname = name;
+    }
+      let chatMessage = '[' + nickname + '] ' + msg;
+      io.emit('chatLogs', chatMessage);
       createNewPost(name, msg);
     });
   });
@@ -106,4 +108,4 @@ io.on('connection', async (socket) => {
 
 server.listen(3000, () => {
   console.log('listening on *:3000');
-}); 
+});
