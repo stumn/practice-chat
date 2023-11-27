@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');     //const 変数 = require('モジュール名')でモジュールを作る
 const app = express();                  //express module でexpress applicationを作る
 const http = require('http');           //http server　を使うためにモジュールを作る？
@@ -5,6 +6,7 @@ const server = http.createServer(app);  //app = express で server を作る？
 const { Server } = require("socket.io");//socket.io のモジュールを作って、socket.io を使ったServer を表現？なぜ｛｝？
 const io = new Server(server);          //http server を引数に、socket.ioが使えるサーバを作り、ioと定義する
 const mongoose = require('mongoose');
+// const { count } = require('console');
 const MONGODB_URL = process.env.MONGODB_URL;
 mongoose.connect(MONGODB_URL, { useNewUrlParser: true })
   .then(() => {
@@ -16,8 +18,8 @@ mongoose.connect(MONGODB_URL, { useNewUrlParser: true })
 
 // オプション設定
 const options = {
-  // timestamps: true, // データの作成時刻・更新時刻を記録する
-  toJSON: { // データを JSON にする際の設定
+  timestamps: true, // データの作成時刻・更新時刻を記録する
+  toObject: { // データの id を使いやすく後で使いやすいようにつけてもらうための設定
     virtuals: true,
     versionKey: false,
     transform: (_, ret) => { delete ret._id; return ret; }
@@ -25,13 +27,13 @@ const options = {
 };
 
 // 保存するデータの形を定義する（データの種類が複数ある場合はそれぞれ１つずつ定義する）
-const postSchema = new mongoose.Schema({ name: String, msg: String }, options);
+const postSchema = new mongoose.Schema({ name: String, msg: String, count: Number }, options);
 // その形式のデータを保存・読み出しするために必要なモデルを作る
 const Post = mongoose.model("Post", postSchema);
 
-async function createNewPost(name, msg) {
+async function createNewPost(name, msg, count) {
   try {
-    const p = await Post.create({ name: name, msg: msg });
+    const p = await Post.create({ name: name, msg: msg, count: count });
     console.log("新しい投稿が作成されました:");
   } catch (e) {
     console.error("エラーが発生しました:", e);
@@ -75,17 +77,38 @@ io.on('connection', async (socket) => {
     createNewPost(name, welcome_msg);
 
     socket.on('typing', () => {
-      console.log(name + ' is typing');
+      // console.log(name + ' is typing');
       io.emit('typing', name);
     });
 
     socket.on('chat message', async (nickname, msg) => {
-      if (/^\s*$/.test(nickname)) {
-        nickname = name;
-    }
-      let chatMessage = '[' + nickname + '] ' + msg;
-      io.emit('chatLogs', chatMessage);
-      createNewPost(name, msg);
+      try {
+        if (/^\s*$/.test(nickname)) { nickname = name; }
+        const p = await Post.create({ name: nickname, msg, count: 0 }); // 最初はいいねが0
+        console.log(p);
+        io.emit('chatLogs', p);
+        // io.emit('chatLogs', { name: nickname, msg: msg, count: 0 });
+        // _idは定義されてないよって怒られる💦
+        // let chatMessage = '[' + nickname + '] ' + msg;
+        // io.emit('chatLogs', chatMessage);
+        // createNewPost(name, msg, 0);
+      }
+      catch (e) {
+        console.error(e);
+      }
+    });
+
+    socket.on('fav', async id => {
+      console.log('fav id: ' + id);
+      const update = { $inc: { count: 1 } };// countを1増やす
+      const options = { new: true }; // 更新後のデータを取得する
+      try {
+        const p = await Post.findByIdAndUpdate(id, update, options);
+        console.log(p);
+        io.emit('fav', p);
+      } catch (e) {
+        console.error(e);
+      }
     });
   });
 
