@@ -8,6 +8,8 @@ const io = new Server(server);          //http server を引数に、socket.io�
 const mongoose = require('mongoose');
 const MONGODB_URL = process.env.MONGODB_URL;
 const PORT = process.env.PORT || 3000;
+const ANONYMOUS_NAME = '匿名';
+
 
 // ↓　mongoose 接続~準備　↓
 mongoose.connect(MONGODB_URL, { useNewUrlParser: true })
@@ -29,7 +31,7 @@ const options = {
 };
 
 // mongoose 保存するデータの形を定義する（データの種類が複数ある場合はそれぞれ１つずつ定義する）
-const postSchema = new mongoose.Schema({ name: String, msg: String, count: Number }, options);
+const postSchema = new mongoose.Schema({ name: String, msg: String, question: String, options: Array, count: Number }, options);
 
 // mongoose その形式のデータを保存・読み出しするために必要なモデルを作る
 const Post = mongoose.model("Post", postSchema);
@@ -43,7 +45,7 @@ app.get('/', (req, res) => {
 // チャットメッセージの関数
 async function createNewPost(socket, name, msg, count) {
   try {
-    createNewRecode(name, msg, count);
+    const newPost = await createNewRecode(name, msg, count);
     console.log("新しい投稿:" + newPost);
     io.emit('chatLogs', newPost);
   } catch (error) {
@@ -60,7 +62,7 @@ async function createNewRecode(name, msg, count) {
 
 // オンラインメンバー配列
 let onlineUsers = [];
-let ids_onlineUsers = [];
+let idsOnlineUsers = [];
 
 // io は接続の全体、socketは接続してきた1つのコマについて
 io.on('connection', async (socket) => {
@@ -68,10 +70,10 @@ io.on('connection', async (socket) => {
 
   socket.on('login', async (name) => {
     if (name === '' || name === null) {
-      name = '匿名';
+      name = ANONYMOUS_NAME;
     }
     onlineUsers.push(name);
-    ids_onlineUsers.push({ id: socket.id, name: name });
+    idsOnlineUsers.push({ id: socket.id, name: name });
     io.emit('onlineUsers', onlineUsers);
 
     // 過去のログを取得
@@ -91,9 +93,9 @@ io.on('connection', async (socket) => {
     }
 
     // いらっしゃいメッセージ
-    const welcome_msg = name + 'さん、いらっしゃい！'
-    io.emit('welcome', welcome_msg);
-    createNewRecode(name, welcome_msg, 0);
+    const welcomeMsg = name + 'さん、いらっしゃい！'
+    io.emit('welcome', welcomeMsg);
+    createNewRecode(name, welcomeMsg, 0);
 
     // タイピングイベント受信＆送信
     socket.on('typing', () => {
@@ -110,8 +112,10 @@ io.on('connection', async (socket) => {
     // アンケートメッセージ受信＆送信
     socket.on('submitSurvey', async data => {
       console.log(data);
-      const msg = data.question + data.options.join(', ');
-      const p = await Post.create({ name, msg, count: 0 });
+      const Q = data.question;
+      const op = [data.options[0], data.options[1], data.options[2] ];
+      const p = await Post.create({ name, question: Q, options: op, count: 0 });
+      console.log(p);
       io.emit('survey_msg', p);
     });
 
@@ -121,8 +125,8 @@ io.on('connection', async (socket) => {
       const update = { $inc: { count: 1 } };// countを1増やす
       const options = { new: true }; // 更新後のデータを取得する
       try {
-        const p = await Post.findByIdAndUpdate(id, update, options);
-        io.emit('fav', p);
+        const postAfterLike = await Post.findByIdAndUpdate(id, update, options);
+        io.emit('fav', postAfterLike);
       } catch (e) {
         console.error(e);
       }
@@ -133,13 +137,13 @@ io.on('connection', async (socket) => {
   // 切断時のイベントハンドラを登録
   socket.on('disconnect', async () => {
     let targetId = socket.id;
-    let targetName = ids_onlineUsers.find(obj => obj.id === targetId)?.name;
+    let targetName = idsOnlineUsers.find(obj => obj.id === targetId)?.name;
     console.log(targetName + ' (' + socket.id + ') disconnected');
 
     // さようならメッセージ
-    const bye_msg = targetName + 'さん、またね！';
-    io.emit('disconnection', bye_msg);
-    createNewRecode(targetName, bye_msg, 0);
+    const byeMsg = targetName + 'さん、またね！';
+    io.emit('disconnection', byeMsg);
+    createNewRecode(targetName, byeMsg, 0);
 
     // オンラインメンバーから削除
     let onlinesWithoutTarget = onlineUsers.filter(val => val !== targetName);

@@ -147,12 +147,12 @@
     <button onclick="toggleSurveyForm()">アンケート作成</button>
 
     <!-- アンケートフォーム -->
-    <form id="surveyForm" style="display: none;">
+    <form id="surveyForm" style="display: none;" action="">
       <input id="surveyQuestion" placeholder="アンケート質問">
       <input id="option1" placeholder="選択肢1">
       <input id="option2" placeholder="選択肢2">
       <input id="option3" placeholder="選択肢3">
-      <button onclick="submitSurvey()">投稿</button>
+      <button>投稿</button>
     </form>
 
   </main>
@@ -160,14 +160,14 @@
   <!-- javascript　ブラウザ側 -->
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    'use strict';
-
     const socket = io();
 
     //フォーム系の取得 
+    const messages = document.getElementById('messages');
     const form = document.getElementById('form');
     const nickname = document.getElementById('nickname');
     const input = document.getElementById('input');
+    const surveyForm = document.getElementById('surveyForm');
     const status = document.getElementById('status');
 
     // ↓メッセージリスト作成関数↓
@@ -208,6 +208,7 @@
     function addMessage(msg, message) {
       const item = createMessageElement(msg, message);
       item.id = message._id;
+      return item;
     }
     // ↑メッセージリスト作成関数↑
 
@@ -239,23 +240,6 @@
       const surveyFormElement = document.getElementById('surveyForm');
       surveyFormElement.style.display = surveyFormElement.style.display === 'none' ? 'block' : 'none';
     }
-
-    // ↓アンケートをサーバーに送信する関数↓
-    function getSurveyData() {
-      const question = document.getElementById('surveyQuestion').value;
-      const option1 = document.getElementById('option1').value;
-      const option2 = document.getElementById('option2').value;
-      const option3 = document.getElementById('option3').value;
-      return { question, options: [option1, option2, option3] };
-    }
-
-    function submitSurvey() {
-      const surveyData = getSurveyData();
-      event.preventDefault();
-      socket.emit('submitSurvey', surveyData);
-    }
-    // ↑アンケートをサーバーに送信する関数↑
-
 
     //プロンプト　ログインで名前を入力・サーバーに送信
     const name = prompt("名前を入力してください", "");
@@ -310,13 +294,52 @@
     });
 
     // アンケートをサーバーに送信
+    surveyForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const question = document.getElementById('surveyQuestion').value;
+      const option1 = document.getElementById('option1').value;
+      const option2 = document.getElementById('option2').value;
+      const option3 = document.getElementById('option3').value;
+      socket.emit('submitSurvey', {question: question, options: [option1, option2, option3] });
+      toggleSurveyForm();
+    });
 
     // アンケートを受信
-    socket.on('survey_msg', (messageData) => {
+    socket.on('survey_msg', (p) => {
+      const item = document.createElement('li');  // li要素を作成
+      const messageText = document.createElement('span');  // span要素を作成  
+      messageText.classList.add('message-text');  // span要素にクラスを追加 
+      messageText.textContent = '[' + p.name + '] ' + p.question;  // span要素にアンケートの質問を追加
 
-      let text = '[' + messageData.name + '] ' + messageData.msg;
-      let item = addMessage(text, messageData);
-      item.id = messageData._id;
+      const surveyContainer = document.createElement('span');  // span要素を作成
+      surveyContainer.classList.add('survey-container');  // span要素にクラスを追加
+
+      const surveyOptions = document.createElement('span');  // span要素を作成
+      surveyOptions.classList.add('survey-options');  // span要素にクラスを追加
+
+      console.log(p.options);
+      for (let i = 0; i < p.options.length; i++) {
+        const surveyOption = document.createElement('button');  // button要素を作成
+        surveyOption.classList.add('survey-option');  // button要素にクラスを追加
+        surveyOption.textContent = p.options[i];  // button要素にアンケートの選択肢を追加
+
+        surveyOption.addEventListener('click', () => {  // button要素にクリックイベントを追加
+          socket.emit('survey', p._id, i);  // サーバーにアンケートの選択肢を送信
+        });
+
+        surveyOptions.appendChild(surveyOption);  // span要素にbutton要素を追加
+      }
+
+      surveyContainer.appendChild(surveyOptions);  // span要素にspan要素を追加
+
+      const favContainer = createFavButton(p);  // いいねボタンを作成 
+      item.appendChild(messageText);  // li要素にspan要素を追加
+      item.appendChild(surveyContainer);  // li要素にspan要素を追加
+      item.appendChild(favContainer);  // li要素にいいねボタンを追加
+
+      messages.appendChild(item);  // ul要素にli要素を追加
+
+      item.id = p._id;
     });
 
     // いいね受信
