@@ -6,122 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>PRACTICE chat</title>
-  <style>
-    body {
-      margin: 0;
-      padding-bottom: 3rem;
-      background-color: #B9DFFF;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-
-    header {
-      background-color: #B9DFFF;
-      color: #385CA8;
-    }
-
-    h1,
-    h3 {
-      display: inline;
-    }
-
-    #status {
-      padding: 1rem;
-      position: fixed;
-      bottom: 2.5rem;
-      right: 0;
-      background-color: beige;
-      border-radius: 1rem;
-    }
-
-    #form {
-      background: rgba(0, 0, 0, 0.15);
-      padding: 0.25rem;
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: flex;
-      height: 3rem;
-      box-sizing: border-box;
-      backdrop-filter: blur(10px);
-    }
-
-    #nickname,
-    #input {
-      border: none;
-      padding: 0 1rem;
-      flex-basis: 30%;
-      border-radius: 2rem;
-      margin: 0.25rem;
-    }
-
-    #input:focus {
-      outline: none;
-    }
-
-    #form>button {
-      background: #385CA8;
-      border: none;
-      padding: 0 1rem;
-      margin: 0.25rem;
-      border-radius: 3px;
-      outline: none;
-      color: #fff;
-    }
-
-
-    #messages {
-      list-style-type: none;
-      margin: 0;
-      padding: 0;
-    }
-
-    #messages>li {
-      padding: 0.5rem 1rem;
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-
-    #messages>li span.message-text {
-      flex: 1;
-      display: flex;
-      /* 子要素を横方向に整列させる */
-      justify-content: space-between;
-      /* 子要素を間隔を保ちながら両端に配置 */
-      align-items: center;
-      margin-right: 10px;
-    }
-
-    #messages>li span.fav-container {
-      display: flex;
-      justify-content: flex-end
-    }
-
-
-    #messages>li button {
-      background-color: #ff69b4;
-      border: none;
-      color: white;
-      padding: 0.25rem 0.5rem;
-      margin-right: 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      outline: none;
-    }
-
-    #messages>li span span {
-      /* margin-left: 5px; */
-      font-weight: bold;
-      color: #ff69b4;
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    #messages>li:nth-child(odd) {
-      background: ivory;
-    }
-  </style>
+  <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
 <body>
@@ -170,23 +55,59 @@
     const surveyForm = document.getElementById('surveyForm');
     const status = document.getElementById('status');
 
-    // ↓メッセージリスト作成関数↓
-    function createMessageElement(msg, message) {
+    // listを作る
+    function makeList(msg, message, isSurvey) {
       const item = document.createElement('li');
-      const messageText = document.createElement('span');
-      messageText.classList.add('message-text');
-      messageText.textContent = msg;
-
-      const favContainer = createFavButton(message);
+      
+      const messageText = makeMessageText(msg, message);  // message-text spanを作成
       item.appendChild(messageText);
+
+      if (isSurvey) {
+        const surveyContainer = makeSurveyContainer(msg, message);
+        item.appendChild(surveyContainer);
+      }
+
+      const favContainer = makeFavContainer(message); 
       item.appendChild(favContainer);
 
-      messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
+
+      messages.appendChild(item); 
+      item.id = message._id;
       return item;
     }
 
-    function createFavButton(message) {
+    // message-text
+    function makeMessageText(msg, message) {
+      console.log('makeMessageText function called');
+      const messageText = document.createElement('span');
+      messageText.classList.add('message-text');
+      messageText.textContent = msg;
+      return messageText;
+    }
+
+    // survey-container
+    function makeSurveyContainer(msg, message) {
+      console.log('makeSurveyContainer function called');
+      const surveyContainer = document.createElement('span');
+      surveyContainer.classList.add('survey-container');
+      for (let i = 0; i < message.options.length; i++) {
+        const surveyOption = document.createElement('button');  // button要素を作成
+        surveyOption.classList.add('survey-option');  // button要素にクラスを追加
+        surveyOption.textContent = message.options[i];  // button要素にアンケートの選択肢を追加
+
+        surveyOption.addEventListener('click', () => {  // button要素にクリックイベントを追加
+          socket.emit('survey', message._id, i);  // サーバーにアンケートの選択肢を送信
+        });
+
+        surveyContainer.appendChild(surveyOption);  // span要素にbutton要素を追加
+      }
+      return surveyContainer;
+    }
+
+    // fav-container
+    function makeFavContainer(message) {
+      console.log('makeFavContainer function called');
       const favContainer = document.createElement('span');
       favContainer.classList.add('fav-container');
 
@@ -197,20 +118,17 @@
       });
 
       const favCount = document.createElement('span');
-      favCount.textContent = '0';
+      if (message.count >= 1) {
+        favCount.textContent = message.count;
+      }
+      else
+      favCount.textContent = 0;
 
       favContainer.appendChild(favButton);
       favContainer.appendChild(favCount);
 
       return favContainer;
     }
-
-    function addMessage(msg, message) {
-      const item = createMessageElement(msg, message);
-      item.id = message._id;
-      return item;
-    }
-    // ↑メッセージリスト作成関数↑
 
     // テンプレートメッセージ作成関数
     function addTemplateMessage(msg) {
@@ -254,8 +172,9 @@
     // 過去ログ受信
     socket.on('pastLogs', (Array) => {
       Array.forEach(element => {
-        let eM = '[' + element.name + '] ' + element.msg;
-        addMessage(eM, element);
+        const eM = '[' + element.name + '] ' + element.msg;
+        console.log(eM);
+        makeList(eM, element, false);
       });
       addTemplateMessage('-----⇊ ここから参加 ⇊-----');
     });
@@ -287,10 +206,10 @@
     });
 
     // チャット受信
-    socket.on('chatLogs', (p) => {
-      let text = '[' + p.name + '] ' + p.msg;
-      let item = addMessage(text, p);
-      item.id = p._id;
+    socket.on('chatLogs', (post) => {
+      const eM = '[' + post.name + '] ' + post.msg;
+      const item = makeList(eM, post, false);
+      item.id = post._id;
     });
 
     // アンケートをサーバーに送信
@@ -300,51 +219,23 @@
       const option1 = document.getElementById('option1').value;
       const option2 = document.getElementById('option2').value;
       const option3 = document.getElementById('option3').value;
-      socket.emit('submitSurvey', {question: question, options: [option1, option2, option3] });
+      socket.emit('submitSurvey', { question: question, options: [option1, option2, option3] });
       toggleSurveyForm();
     });
 
     // アンケートを受信
     socket.on('survey_msg', (p) => {
-      const item = document.createElement('li');  // li要素を作成
-      const messageText = document.createElement('span');  // span要素を作成  
-      messageText.classList.add('message-text');  // span要素にクラスを追加 
-      messageText.textContent = '[' + p.name + '] ' + p.question;  // span要素にアンケートの質問を追加
-
-      const surveyContainer = document.createElement('span');  // span要素を作成
-      surveyContainer.classList.add('survey-container');  // span要素にクラスを追加
-
-      const surveyOptions = document.createElement('span');  // span要素を作成
-      surveyOptions.classList.add('survey-options');  // span要素にクラスを追加
-
-      console.log(p.options);
-      for (let i = 0; i < p.options.length; i++) {
-        const surveyOption = document.createElement('button');  // button要素を作成
-        surveyOption.classList.add('survey-option');  // button要素にクラスを追加
-        surveyOption.textContent = p.options[i];  // button要素にアンケートの選択肢を追加
-
-        surveyOption.addEventListener('click', () => {  // button要素にクリックイベントを追加
-          socket.emit('survey', p._id, i);  // サーバーにアンケートの選択肢を送信
-        });
-
-        surveyOptions.appendChild(surveyOption);  // span要素にbutton要素を追加
-      }
-
-      surveyContainer.appendChild(surveyOptions);  // span要素にspan要素を追加
-
-      const favContainer = createFavButton(p);  // いいねボタンを作成 
-      item.appendChild(messageText);  // li要素にspan要素を追加
-      item.appendChild(surveyContainer);  // li要素にspan要素を追加
-      item.appendChild(favContainer);  // li要素にいいねボタンを追加
-
-      messages.appendChild(item);  // ul要素にli要素を追加
-
+      const msg = '[' + p.name + '] ' + p.question;
+      const item = makeList(msg, p, true);
       item.id = p._id;
     });
 
     // いいね受信
     socket.on('fav', (favData) => {
+      console.log(favData);
+      console.log(favData._id);
       const item = document.getElementById(favData._id);
+      console.log(item);
       const favCount = item.querySelector('.fav-container span');
       favCount.textContent = favData.count;
     });

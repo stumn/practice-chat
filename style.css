@@ -1,0 +1,114 @@
+   body {
+       margin: 0;
+       padding-bottom: 3rem;
+       background-color: #B9DFFF;
+       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+   }
+
+   header {
+       background-color: #B9DFFF;
+       color: #385CA8;
+   }
+
+   h1,
+   h3 {
+       display: inline;
+   }
+
+   #status {
+       padding: 1rem;
+       position: fixed;
+       bottom: 2.5rem;
+       right: 0;
+       background-color: beige;
+       border-radius: 1rem;
+   }
+
+   #form {
+       background: rgba(0, 0, 0, 0.15);
+       padding: 0.25rem;
+       position: fixed;
+       bottom: 0;
+       left: 0;
+       right: 0;
+       display: flex;
+       height: 3rem;
+       box-sizing: border-box;
+       backdrop-filter: blur(10px);
+   }
+
+   #nickname,
+   #input {
+       border: none;
+       padding: 0 1rem;
+       flex-basis: 30%;
+       border-radius: 2rem;
+       margin: 0.25rem;
+   }
+
+   #input:focus {
+       outline: none;
+   }
+
+   #form>button {
+       background: #385CA8;
+       border: none;
+       padding: 0 1rem;
+       margin: 0.25rem;
+       border-radius: 3px;
+       outline: none;
+       color: #fff;
+   }
+
+
+   #messages {
+       list-style-type: none;
+       margin: 0;
+       padding: 0;
+   }
+
+   #messages>li {
+       padding: 0.5rem 1rem;
+       position: relative;
+       display: flex;
+       align-items: center;
+   }
+
+   #messages>li span.message-text {
+       flex: 1;
+       display: flex;
+       /* 子要素を横方向に整列させる */
+       justify-content: space-between;
+       /* 子要素を間隔を保ちながら両端に配置 */
+       align-items: center;
+       margin-right: 10px;
+   }
+
+   #messages>li span.fav-container {
+       display: flex;
+       justify-content: flex-end
+   }
+
+
+   #messages>li button {
+       background-color: #ff69b4;
+       border: none;
+       color: white;
+       padding: 0.25rem 0.5rem;
+       margin-right: 10px;
+       border-radius: 5px;
+       cursor: pointer;
+       outline: none;
+   }
+
+   #messages>li span span {
+       /* margin-left: 5px; */
+       font-weight: bold;
+       color: #ff69b4;
+       display: flex;
+       justify-content: flex-end;
+   }
+
+   #messages>li:nth-child(odd) {
+       background: ivory;
+   }
