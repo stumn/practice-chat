@@ -79,7 +79,6 @@
 
     // message-text
     function makeMessageText(msg, message) {
-      console.log('makeMessageText function called');
       const messageText = document.createElement('span');
       messageText.classList.add('message-text');
       messageText.textContent = msg;
@@ -88,7 +87,6 @@
 
     // survey-container
     function makeSurveyContainer(msg, message) {
-      console.log('makeSurveyContainer function called');
       const surveyContainer = document.createElement('span');
       surveyContainer.classList.add('survey-container');
       for (let i = 0; i < message.options.length; i++) {
@@ -96,18 +94,22 @@
         surveyOption.classList.add('survey-option');  // button要素にクラスを追加
         surveyOption.textContent = message.options[i];  // button要素にアンケートの選択肢を追加
 
+        const surveyNum = document.createElement('span');  // span要素を作成
+        surveyNum.classList.add('survey-num');  // span要素にクラスを追加
+        surveyNum.textContent = 0;  // span要素にアンケートの投票数を追加
+
         surveyOption.addEventListener('click', () => {  // button要素にクリックイベントを追加
           socket.emit('survey', message._id, i);  // サーバーにアンケートの選択肢を送信
         });
 
         surveyContainer.appendChild(surveyOption);  // span要素にbutton要素を追加
+        surveyContainer.appendChild(surveyNum);  // span要素にspan要素を追加
       }
       return surveyContainer;
     }
 
     // fav-container
     function makeFavContainer(message) {
-      console.log('makeFavContainer function called');
       const favContainer = document.createElement('span');
       favContainer.classList.add('fav-container');
 
@@ -118,12 +120,14 @@
       });
 
       const favCount = document.createElement('span');
+      favCount.classList.add('fav-count');
       if (message.count >= 1) {
         favCount.textContent = message.count;
       }
-      else
+      else{
       favCount.textContent = 0;
-
+      }
+      
       favContainer.appendChild(favButton);
       favContainer.appendChild(favCount);
 
@@ -231,13 +235,19 @@
     });
 
     // いいね受信
-    socket.on('fav', (favData) => {
+    socket.on('updatefav', (favData) => {
       console.log(favData);
       console.log(favData._id);
       const item = document.getElementById(favData._id);
       console.log(item);
       const favCount = item.querySelector('.fav-container span');
       favCount.textContent = favData.count;
+    });
+
+    // 10回以上いいね出来ませんアラート
+    socket.on('alert', (msg) => {
+      console.log(msg);
+      alert(msg);
     });
 
     // ディスコネクト受信

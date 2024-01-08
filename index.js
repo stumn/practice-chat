@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
 });
 
 // ~/style.css というurlでリクエストに、/style.cssファイルを送るレスポンスを返す(これが無いと、cssが適用されない)
-app.get('/style.css', function(req, res) {
+app.get('/style.css', function (req, res) {
   res.header('Content-Type', 'text/css');
   res.sendFile(__dirname + '/style.css');
 });
@@ -54,13 +54,27 @@ io.on('connection', async (socket) => {
     try {
       const posts = await Post.find({}).limit(10).sort({ _id: -1 }); // 新しい順に10件の投稿を取得
       posts.reverse();
-      const pastLogs = posts.map(post => ({
-        _id: post._id,
-        name: post.name,
-        msg: post.msg,
-        count: post.count
-      }));
-      console.log(pastLogs);
+      console.log('生データ: ' + posts);
+
+      let pastLogs = [];
+
+      posts.forEach(post => {
+        const pastFav = post.likes;
+        let pastSum = 0;
+        for (let i = 0; i < pastFav.length; i++) {
+          pastSum += pastFav[i].fav;
+        }
+
+        pastLogData = {
+          _id: post._id,
+          name: post.name,
+          msg: post.msg,
+          count: pastSum
+        }
+        pastLogs.push(pastLogData);
+      });
+
+      console.log('htmlに送信する過去ログ' + pastLogs);
       socket.emit('pastLogs', pastLogs);
     } catch (error) {
       console.error('エラーが発生しました', error);
@@ -104,18 +118,85 @@ io.on('connection', async (socket) => {
       }
     });
 
-    // いいね受信＆送信
-    socket.on('fav', async id => {
-      console.log('fav id: ' + id);
-      const update = { $inc: { count: 1 } };// countを1増やす
-      const options = { new: true }; // 更新後のデータを取得する
+    // // いいね受信＆送信
+    // socket.on('fav', async id => {
+    //   console.log('fav id: ' + id);
+
+    //   const update = { $inc: { count: 1 } };// countを1増やす
+    //   const options = { new: true }; // 更新後のデータを取得する
+    //   try {
+    //     const postAfterLike = await Post.findByIdAndUpdate(id, update, options);
+    //     io.emit('fav', postAfterLike);
+    //   } catch (e) {
+    //     console.error(e);
+    //   }
+    // });
+
+    // いいね受信＆送信（改正版）
+    socket.on('fav', async msgId => {
+      console.log('favmsg msgId: ' + msgId + ' by ' + socket.id);
+
       try {
-        const postAfterLike = await Post.findByIdAndUpdate(id, update, options);
-        io.emit('fav', postAfterLike);
-      } catch (e) {
-        console.error(e);
+        // 1. 投稿を特定
+        const favPost = await Post.findById(msgId);
+
+        // 2.投稿が見つからない場合の処理
+        if (!favPost) {
+          console.error('0 投稿が見つからぬ:' + msgId);
+          return;
+        } else {
+          console.log('1 あったよfavPost: ' + favPost);
+          const favArray = favPost.likes;
+
+          // 3. いいねを押すユーザーが既にいいねしているか確認
+          if (favPost.likes.length === 0) {
+            console.log('2 そもそも誰もいいねしてない');
+            favArray.push({ userSocketId: socket.id, fav: 1 });
+            await favPost.save();
+          } else {
+            console.log('3 誰かは良いねしてる');
+            // likes 配列内を検索
+            const retrieve = favArray.find(item => item.userSocketId === socket.id);
+            if (retrieve === null) {
+              console.log('4 何かがおかしい');
+            } else {
+              console.log('5 既にいいねしてる');
+              if (retrieve.fav >= 10) {
+                console.log('6 既に10回いいねしてる');
+                socket.emit('alert', '10回以上いいねはできません');
+                return;
+              }
+              else {
+                console.log('7 いいねが1回以上10回未満なので+1');
+                // カウントを1増やす
+                retrieve.fav += 1;
+                await favPost.save();
+              }
+            }
+          }
+
+          // count 計算
+          let favSum = 0; // 仮置き!
+          for (let i = 0; i < favArray.length; i++) {
+            favSum += favArray[i].fav;
+          }
+          console.log('8 favmsg msgId: ' + msgId + 'favSum: ' + favSum);
+
+          // 投稿の情報をクライアントに通知
+          const favData = {
+            _id: favPost._id,
+            count: favSum
+          }
+          console.log('9' + favData);
+
+          io.emit('updatefav', favData);
+        }
+      }
+      catch (error) {
+        console.error('favでエラーが発生しました', error);
       }
     });
+
 
   });
 
