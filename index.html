@@ -169,7 +169,7 @@
     document.getElementById('login-name').textContent = 'ログイン名： ' + name;
 
     // オンラインメンバー
-    socket.on('onlines', (onlines) => {
+    socket.on('onlineUsers', (onlines) => {
       document.getElementById('onlines').textContent = onlines;
     });
 
