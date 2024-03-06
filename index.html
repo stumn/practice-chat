@@ -58,7 +58,7 @@
     // listを作る
     function makeList(msg, message, isSurvey) {
       const item = document.createElement('li');
-      
+
       const messageText = makeMessageText(msg, message);  // message-text spanを作成
       item.appendChild(messageText);
 
@@ -67,12 +67,12 @@
         item.appendChild(surveyContainer);
       }
 
-      const favContainer = makeFavContainer(message); 
+      const favContainer = makeFavContainer(message);
       item.appendChild(favContainer);
 
       window.scrollTo(0, document.body.scrollHeight);
 
-      messages.appendChild(item); 
+      messages.appendChild(item);
       item.id = message._id;
       return item;
     }
@@ -95,7 +95,7 @@
         surveyOption.textContent = message.options[i];  // button要素にアンケートの選択肢を追加
 
         const surveyNum = document.createElement('span');  // span要素を作成
-        surveyNum.classList.add('survey-num');  // span要素にクラスを追加
+        surveyNum.classList.add('survey-num-' + (i + 1)); // インデックス番号をクラス名に追加
         surveyNum.textContent = 0;  // span要素にアンケートの投票数を追加
 
         surveyOption.addEventListener('click', () => {  // button要素にクリックイベントを追加
