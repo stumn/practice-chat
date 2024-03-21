@@ -6,6 +6,7 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 const { mongoose, Post } = require('./db');
+const { userInfo } = require('os');
 const PORT = process.env.PORT || 3000;
 const ANONYMOUS_NAME = '匿名';
 
@@ -67,7 +68,7 @@ io.on('connection', async (socket) => {
       const op = [data.options[0], data.options[1], data.options[2]];
       try {
         const p = await saveRecord(name, '', Q, op, 0);
-        console.log('p セーブしました:' + p.id);
+        console.log('p アンケート保存しました:' + p.id);
         io.emit('survey_msg', p);
       } catch (error) {
         handleErrors(error, 'アンケート受送信');
@@ -78,7 +79,7 @@ io.on('connection', async (socket) => {
     socket.on('survey', async (msgId, option) => {
       console.log('投票msg: ' + msgId + ' 選択肢: ' + option + ' by ' + name);
       try {
-        const voteData = await processVoteEvent(msgId, option);
+        const voteData = await processVoteEvent(msgId, option, socket.id, socket);
         io.emit('updateVote', voteData);
       } catch (error) {
         handleErrors(error, 'アンケート投票受送信');
@@ -102,87 +103,6 @@ io.on('connection', async (socket) => {
     });
   });
 
-  async function processVoteEvent(msgId, option) {
-    try {
-      // アンケート投稿を特定
-      const surveyPost = await Post.findById(msgId);
-      
-      if (!surveyPost) {// 投稿が見つからない場合の処理
-        console.error('0 投票先が見つからぬ:' + msgId);
-        return;
-      } else {
-        console.log('1 投稿先あった: ' + surveyPost);
-        const voteArray0 = surveyPost.voteOpt0;
-        const voteArray1 = surveyPost.voteOpt1;
-        const voteArray2 = surveyPost.voteOpt2;
-
-        // 3. voteするユーザーが既にvoteしているか確認
-        const idToCheck = socket.id;
-        let votedOption;
-
-        // voteArray012それぞれの配列から、指定したIDのオブジェクトを検索
-        const isIdNotPresent = [voteArray0, voteArray1, voteArray2].every(voteOpt => {
-          if (voteOpt.some(obj => obj.id === idToCheck)) {
-            votedOption = index;
-            return false;//2番
-          }
-          return true;//1番
-        });
-
-        // 結果
-        if (isIdNotPresent) {//1番
-          console.log(`ID ${idToCheck} は、投票者配列1,2,3のどれにもいません。`);
-          switch (option) {
-            case 0:
-              voteArray0.push({ userSocketId: socket.id, fav: 1 });
-              break;
-            case 1:
-              voteArray1.push({ userSocketId: socket.id, fav: 1 });
-              break;
-            case 2:
-              voteArray2.push({ userSocketId: socket.id, fav: 1 });
-              break;
-          };
-          await surveyPost.save();
-        } else {//2番 まだうまく出来てない
-          console.log(`ID ${idToCheck} は、投票者配列${votedOption}にいます。`);
-          // 既に投票している ⇨ 同じ選択肢　OR　違う選択肢
-          switch (option) {
-            case votedOption:
-              console.log('同じ選択肢');
-              socket.emit('alert', '同じ選択肢には投票できません');
-              break;
-            case !votedOption:
-              console.log('違う選択肢');
-              const dialog = socket.emit('dialog', '投票を変更しますか？');
-
-              switch (dialog) {
-                case true:// if yes, 既に投票している選択肢のカウントを1減らし、新しい選択肢のカウントを1増やす
-                  voteArray0.push({ userSocketId: socket.id, fav: 1 }); // 仮 voteArray0じゃないようにしたい
-                  await surveyPost.save();
-                case false:// if no, 何もしない
-                  break;
-              }
-          }
-        }
-        // count 計算
-        const voteSum0 = calculateSum(voteArray0);
-        const voteSum1 = calculateSum(voteArray1);
-        const voteSum2 = calculateSum(voteArray2);
-        console.log('8 vote msgId: ' + msgId + 'voteSum: ' + voteSum0 + ' ' + voteSum1 + ' ' + voteSum2);
-
-        return {
-          _id: surveyPost._id,
-          count0: voteSum0,
-          count1: voteSum1,
-          count2: voteSum2
-        };
-      }
-    } catch (error) {
-      handleErrors(error, 'vote関数内');
-    }
-  }
-
   async function processFavEvent(msgId, userSocketId) {
     try {
       // 1. 投稿を特定
@@ -190,7 +110,7 @@ io.on('connection', async (socket) => {
 
       // 2.投稿が見つからない場合の処理
       if (!favPost) {
-        console.error('0 投稿が見つからぬ:' + msgId);
+        handleErrors(error, `fav投稿見つからない${msgId}`);
         return;
       } else {
         console.log('1 あったよfavPost: ' + favPost);
@@ -242,10 +162,9 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', async () => {
     let targetId = socket.id;
     let targetName = idsOnlineUsers.find(obj => obj.id === targetId)?.name;
-    // console.log(targetName + ' (' + socket.id + ') disconnected');
 
     // さようならテンプレ
-    const byeMsg = targetName + 'さん、またね！';
+    const byeMsg = targetName + ' (' + socket.id + ') ' + 'さん、またね！';
     templateMsg('bye', byeMsg);
 
     // オンラインメンバーから削除
@@ -254,6 +173,95 @@ io.on('connection', async (socket) => {
     io.emit('onlineUsers', onlineUsers);
   });
 });
+
+async function processVoteEvent(msgId, option, userSocketId, socket) {
+  try {
+    // アンケート投稿を特定
+    const surveyPost = await Post.findById(msgId);
+    const postExists = surveyPost ? true : false;
+    if (postExists === false) {
+      throw new Error(`投稿ID${msgId}が見つかりませんでした。`);
+    }
+
+    // 投票配列を作成
+    const voteArrays = [surveyPost.voteOpt0, surveyPost.voteOpt1, surveyPost.voteOpt2];
+
+    // ユーザーが既にvoteしているか確認
+    let { userHasVoted, votedOption } = checkVote(userSocketId, voteArrays);
+    switch (userHasVoted) {
+      case true://投票済み
+        console.log(`ID ${userSocketId} は、投票者配列${votedOption}にいます。`);
+        //同じ選択肢に投票済み
+        await handleVotedUser(option, votedOption, socket, voteArrays, surveyPost);
+        break;
+      case false://まだ投票したこと無い
+        falseFunction(option, voteArrays, userSocketId);
+        break;
+    }
+
+    // count 計算
+    let voteSums = [];
+    for (let i = 0; i < voteArrays.length; i++) {
+      voteSums[i] = calculateSum(voteArrays[i]);
+    }
+    console.log(`vote msgId: ${msgId} voteSum: ${voteSums.join(' ')}`);
+
+    return {
+      _id: surveyPost._id,
+      count0: voteSums[0],
+      count1: voteSums[1],
+      count2: voteSums[2]
+    };
+
+  } catch (error) {
+    handleErrors(error, 'vote関数内');
+  }
+}
+
+// ユーザが投稿に対して投票しているかどうか
+function checkVote(userSocketId, voteArrays) {
+  let votedOption;
+  let userHasVoted = false;
+
+  voteArrays.forEach((voteOpt, index) => {
+    if (voteOpt.some(obj => obj.id === userSocketId)) {
+      votedOption = index;
+      userHasVoted = true;
+    }
+  });
+
+  return { userHasVoted, votedOption };
+}
+
+async function handleVotedUser(option, votedOption, socket, voteArrays, surveyPost) {
+  if (option === votedOption) {//同じ選択肢に投票済み
+    console.log('同じ選択肢');
+    socket.emit('alert', '同じ選択肢には投票できません');
+  }
+  else { //違う選択肢に投票済み
+    console.log('違う選択肢');
+    socket.emit('dialog_tohtml', '投票を変更しますか？');
+    const answer = await new Promise(resolve => {
+      socket.on('dialog_tojs', resolve);
+    });
+    if (answer === true) { //投票済みの選択肢を1減らし、新しい選択肢に1増やす
+      voteArrays[votedOption].pull({ userSocketId: socket.id, fav: 1 });
+      voteArrays[option].push({ userSocketId: socket.id, fav: 1 });
+      await surveyPost.save();
+    }
+  }
+}
+
+async function falseFunction(option, voteArrays, userSocketId) {
+  console.log(`ID ${userSocketId} は、投票者配列1,2,3のどれにもいません。`);
+  if (option >= 0 && option < voteArrays.length) {
+    voteArrays[option].push({ userSocketId: userSocketId, fav: 1 });
+    console.log(`ID ${userSocketId} は、投票者配列${option}に追加されました。`);
+    await surveyPost.save();
+  } else {
+    console.log('無効なオプション');
+  }
+}
 
 async function saveRecord(name, msg, question, options, count) {
   try {
