@@ -31,7 +31,6 @@
 
     <button onclick="toggleSurveyForm()">アンケート作成</button>
 
-    <!-- アンケートフォーム -->
     <form id="surveyForm" style="display: none;" action="">
       <input id="surveyQuestion" placeholder="アンケート質問">
       <input id="option1" placeholder="選択肢1">
@@ -59,7 +58,7 @@
     function makeList(msg, message, isSurvey) {
       const item = document.createElement('li');
 
-      const messageText = makeMessageText(msg, message);  // message-text spanを作成
+      const messageText = makeMessageText(msg, message);
       item.appendChild(messageText);
 
       if (isSurvey) {
@@ -77,7 +76,7 @@
       return item;
     }
 
-    // message-text
+    // message-text　spanを作成
     function makeMessageText(msg, message) {
       const messageText = document.createElement('span');
       messageText.classList.add('message-text');
@@ -85,30 +84,34 @@
       return messageText;
     }
 
-    // survey-container
+    // survey-container　spanを作成
     function makeSurveyContainer(msg, message) {
       const surveyContainer = document.createElement('span');
       surveyContainer.classList.add('survey-container');
       for (let i = 0; i < message.options.length; i++) {
-        const surveyOption = document.createElement('button');  // button要素を作成
-        surveyOption.classList.add('survey-option');  // button要素にクラスを追加
-        surveyOption.textContent = message.options[i];  // button要素にアンケートの選択肢を追加
+        //button要素を作成・クラスを追加・選択肢テキストを追加
+        const surveyOption = document.createElement('button');
+        surveyOption.classList.add('survey-option');
+        surveyOption.textContent = message.options[i];
 
-        const surveyNum = document.createElement('span');  // span要素を作成
-        surveyNum.classList.add('survey-num-' + (i + 1)); // インデックス番号をクラス名に追加
-        surveyNum.textContent = 0;  // span要素にアンケートの投票数を追加
+        //span要素を作成・インデックス番号をクラス名に追加・投票数を追加
+        const surveyNum = document.createElement('span');
+        surveyNum.classList.add('survey-num-' + (i + 1));
+        surveyNum.textContent = 0;
 
-        surveyOption.addEventListener('click', () => {  // button要素にクリックイベントを追加
-          socket.emit('survey', message._id, i);  // サーバーにアンケートの選択肢を送信
+        //buttonにクリックイベントを追加・サーバーに投票を送信
+        surveyOption.addEventListener('click', () => {
+          socket.emit('survey', message._id, i);
         });
 
-        surveyContainer.appendChild(surveyOption);  // span要素にbutton要素を追加
-        surveyContainer.appendChild(surveyNum);  // span要素にspan要素を追加
+        //span要素にbutton要素を追加・span要素にspan要素を追加
+        surveyContainer.appendChild(surveyOption);
+        surveyContainer.appendChild(surveyNum);
       }
       return surveyContainer;
     }
 
-    // fav-container
+    // fav-container  spanを作成
     function makeFavContainer(message) {
       const favContainer = document.createElement('span');
       favContainer.classList.add('fav-container');
@@ -121,13 +124,13 @@
 
       const favCount = document.createElement('span');
       favCount.classList.add('fav-count');
+
       if (message.count >= 1) {
         favCount.textContent = message.count;
+      } else {
+        favCount.textContent = 0;
       }
-      else{
-      favCount.textContent = 0;
-      }
-      
+
       favContainer.appendChild(favButton);
       favContainer.appendChild(favCount);
 
@@ -216,7 +219,7 @@
       item.id = post._id;
     });
 
-    // アンケートをサーバーに送信
+    // アンケート投稿をサーバーに送信
     surveyForm.addEventListener('submit', (event) => {
       event.preventDefault();
       const question = document.getElementById('surveyQuestion').value;
@@ -227,11 +230,23 @@
       toggleSurveyForm();
     });
 
-    // アンケートを受信
+    // アンケートブロードキャストを受信
     socket.on('survey_msg', (p) => {
       const msg = '[' + p.name + '] ' + p.question;
       const item = makeList(msg, p, true);
       item.id = p._id;
+    });
+
+    // 投票を受信
+    socket.on('updateVote', (voteData) => {
+      console.log(voteData);
+      console.log(voteData._id);
+      const item = document.getElementById(voteData._id);
+      console.log(item);
+      for (let i = 0; i < 3; i++) {
+        const surveyNum = item.querySelector(`.survey-container .survey-num-${i+1}`);
+        surveyNum.textContent = voteData[`count${i}`];
+      }
     });
 
     // いいね受信
@@ -244,10 +259,21 @@
       favCount.textContent = favData.count;
     });
 
-    // 10回以上いいね出来ませんアラート
+    // アラート
     socket.on('alert', (msg) => {
       console.log(msg);
       alert(msg);
+    });
+
+    // ダイアログ
+    socket.on('dialog_tohtml', (msg) => {
+      console.log(msg);
+      if (confirm(msg)) {
+        socket.emit('dialog_tojs', true);
+      }
+      else {
+        socket.emit('dialog_tojs', false);
+      }
     });
 
     // ディスコネクト受信
