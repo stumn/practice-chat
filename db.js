@@ -41,13 +41,11 @@ const postSchema = new mongoose.Schema({
     msg: String,
     question: String,
     options: Array,
-    likes: [{
-        type: favSchema,
-        default: () => ({})
-    }],
-    voteOpt0: [{type: favSchema, default: () => ({})}],
-    voteOpt1: [{type: favSchema, default: () => ({})}],
-    voteOpt2: [{type: favSchema, default: () => ({})}]
+    likes: [{type: favSchema, default: () => ({})}],
+    // voteOptions: [[voteSchema]]　2次元配列の拡張案
+    voteOpt0: [String],
+    voteOpt1: [String],
+    voteOpt2: [String]
 }, options);
 
 // その形式のデータを保存・読み出しするために必要なモデルを作る
