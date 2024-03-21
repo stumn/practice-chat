@@ -266,13 +266,13 @@
     });
 
     // ダイアログ
-    socket.on('dialog_tohtml', (msg) => {
+    socket.on('dialog_to_html', (msg) => {
       console.log(msg);
       if (confirm(msg)) {
-        socket.emit('dialog_tojs', true);
+        socket.emit('dialog_to_js', true);
       }
       else {
-        socket.emit('dialog_tojs', false);
+        socket.emit('dialog_to_js', false);
       }
     });
 
