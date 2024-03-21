@@ -44,7 +44,10 @@ const postSchema = new mongoose.Schema({
     likes: [{
         type: favSchema,
         default: () => ({})
-    }]
+    }],
+    voteOpt0: [{type: favSchema, default: () => ({})}],
+    voteOpt1: [{type: favSchema, default: () => ({})}],
+    voteOpt2: [{type: favSchema, default: () => ({})}]
 }, options);
 
 // その形式のデータを保存・読み出しするために必要なモデルを作る
