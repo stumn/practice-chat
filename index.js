@@ -7,6 +7,7 @@ const { Server } = require("socket.io");
 const io = new Server(server);
 const { mongoose, Post } = require('./db');
 const { userInfo } = require('os');
+const { error } = require('console');
 const PORT = process.env.PORT || 3000;
 const ANONYMOUS_NAME = '匿名';
 
@@ -52,7 +53,7 @@ io.on('connection', async (socket) => {
       name = /^\s*$/.test(nickname) ? name : nickname;
 
       try {
-        const p = await saveRecord(name, msg, '', '', 0);
+        const p = await saveRecord(name, msg);
         console.log('p:' + p.msg + p.id);
         io.emit('chatLogs', p);
       }
@@ -67,7 +68,7 @@ io.on('connection', async (socket) => {
       const Q = data.question;
       const op = [data.options[0], data.options[1], data.options[2]];
       try {
-        const p = await saveRecord(name, '', Q, op, 0);
+        const p = await saveRecord(name, '', Q, op);
         console.log('p アンケート保存しました:' + p.id);
         io.emit('survey_msg', p);
       } catch (error) {
@@ -183,26 +184,34 @@ async function processVoteEvent(msgId, option, userSocketId, socket) {
       throw new Error(`投稿ID${msgId}が見つかりませんでした。`);
     }
 
-    // 投票配列を作成
-    const voteArrays = [surveyPost.voteOpt0, surveyPost.voteOpt1, surveyPost.voteOpt2];
+    console.log(surveyPost);
+    // 投票配列を作成(二次元配列[[ken_id, takashi_id][naknao_id][okamoto_id]])
+    // const voteArrays = [surveyPost.voteOpt0, surveyPost.voteOpt1, surveyPost.voteOpt2];
+    // const voteArrays = [[surveyPost.voteOpt0],[surveyPost.voteOpt1],[surveyPost.voteOpt2]];
+    let voteArrays = [];
+    voteArrays.push(surveyPost.voteOpt0);
+    voteArrays.push(surveyPost.voteOpt1);
+    voteArrays.push(surveyPost.voteOpt2);
+
+    console.log(voteArrays);
 
     // ユーザーが既にvoteしているか確認
-    let { userHasVoted, votedOption } = checkVote(userSocketId, voteArrays);
+    let { userHasVoted, hasVotedOption } = checkVote(userSocketId, voteArrays);
     switch (userHasVoted) {
       case true://投票済み
-        console.log(`ID ${userSocketId} は、投票者配列${votedOption}にいます。`);
+        console.log(`ID ${userSocketId} は、投票者配列${hasVotedOption}にいます。`);
         //同じ選択肢に投票済み
-        await handleVotedUser(option, votedOption, socket, voteArrays, surveyPost);
+        await handleVotedUser(option, hasVotedOption, socket, voteArrays, surveyPost);
         break;
       case false://まだ投票したこと無い
-        falseFunction(option, voteArrays, userSocketId);
+        falseFunction(option, surveyPost, voteArrays, userSocketId);
         break;
     }
 
     // count 計算
     let voteSums = [];
     for (let i = 0; i < voteArrays.length; i++) {
-      voteSums[i] = calculateSum(voteArrays[i]);
+      voteSums[i] = voteArrays[i].length;
     }
     console.log(`vote msgId: ${msgId} voteSum: ${voteSums.join(' ')}`);
 
@@ -218,23 +227,40 @@ async function processVoteEvent(msgId, option, userSocketId, socket) {
   }
 }
 
-// ユーザが投稿に対して投票しているかどうか
 function checkVote(userSocketId, voteArrays) {
-  let votedOption;
+  console.log(voteArrays);
+  let hasVotedOption;
   let userHasVoted = false;
-
-  voteArrays.forEach((voteOpt, index) => {
-    if (voteOpt.some(obj => obj.id === userSocketId)) {
-      votedOption = index;
-      userHasVoted = true;
-    }
+  voteArrays.forEach((voteOptArray, index) => {
+    console.log('~~~~~~~~~~~~~~' + voteOptArray);
+    console.log('==========' + index);
+    voteOptArray.forEach((voteOpt) => {
+      console.log(voteOpt);
+      if (Array.isArray(voteOpt)) {
+        if (voteOpt.some(obj => obj.id === userSocketId)) {
+          console.log('配列で一致');
+          hasVotedOption = index;
+          userHasVoted = true;
+        } else {
+          console.log('配列だけど、一致しないね');
+        }
+      }
+      else {
+        if (voteOpt === userSocketId) {
+          console.log('配列じゃないけど、一致');
+          hasVotedOption = index;
+          userHasVoted = true;
+        } else {
+          console.log('checkVote配列じゃないし、一致もしない');
+        }
+      }
+    });
   });
-
-  return { userHasVoted, votedOption };
+  return { userHasVoted, hasVotedOption };
 }
 
-async function handleVotedUser(option, votedOption, socket, voteArrays, surveyPost) {
-  if (option === votedOption) {//同じ選択肢に投票済み
+async function handleVotedUser(option, hasVotedOption, socket, voteArrays, surveyPost) {
+  if (option === hasVotedOption) {//同じ選択肢に投票済み
     console.log('同じ選択肢');
     socket.emit('alert', '同じ選択肢には投票できません');
   }
@@ -245,27 +271,28 @@ async function handleVotedUser(option, votedOption, socket, voteArrays, surveyPo
       socket.on('dialog_tojs', resolve);
     });
     if (answer === true) { //投票済みの選択肢を1減らし、新しい選択肢に1増やす
-      voteArrays[votedOption].pull({ userSocketId: socket.id, fav: 1 });
-      voteArrays[option].push({ userSocketId: socket.id, fav: 1 });
+      voteArrays[hasVotedOption].pull(socket.id);
+      voteArrays[option].push(socket.id);
       await surveyPost.save();
     }
   }
 }
 
-async function falseFunction(option, voteArrays, userSocketId) {
+async function falseFunction(option, surveyPost, voteArrays, userSocketId) {
   console.log(`ID ${userSocketId} は、投票者配列1,2,3のどれにもいません。`);
   if (option >= 0 && option < voteArrays.length) {
-    voteArrays[option].push({ userSocketId: userSocketId, fav: 1 });
+    voteArrays[option].push(userSocketId);
     console.log(`ID ${userSocketId} は、投票者配列${option}に追加されました。`);
+    console.log(surveyPost);
     await surveyPost.save();
   } else {
     console.log('無効なオプション');
   }
 }
 
-async function saveRecord(name, msg, question, options, count) {
+async function saveRecord(name, msg, question = '', options = [], likes = [], voteOpt0 = [], voteOpt1 = [], voteOpt2 = []) {
   try {
-    const npData = { name, msg, question, options, count };
+    const npData = { name, msg, question, options, likes, voteOpt0, voteOpt1, voteOpt2 };
     const newPost = await Post.create(npData);
     return newPost;
   } catch (error) {
@@ -276,7 +303,7 @@ async function saveRecord(name, msg, question, options, count) {
 
 async function templateMsg(socketEvent, message) {
   await io.emit(socketEvent, message);
-  await saveRecord('system', message, null, null, 0);
+  await saveRecord('system', message);
   console.log(`${socketEvent}: ${message}`);
 }
 
