@@ -132,10 +132,9 @@ async function saveRecord(name, msg, question = '', options = [], likes = [], vo
 }
 
 // テンプレメッセージを送信・DB保存
-async function templateMsg(socketEvent, message) {
-  io.emit(socketEvent, message);
+async function templateMsg(templateEvent, message) {
+  io.emit(templateEvent, message);
   await saveRecord('system', message);
-  // console.log(`${socketEvent}: ${message}`);
 }
 
 // チャットメッセージ受送信
@@ -185,7 +184,7 @@ async function processVoteEvent(msgId, option, userSocketId, socket) {
     // 投票配列
     let voteArrays = createVoteArrays(surveyPost);
     // ユーザーが投票済みか否か
-    let { userHasVoted, hasVotedOption } = checkVote(userSocketId, voteArrays);
+    let { userHasVoted, hasVotedOption } = checkVoteStatus(userSocketId, voteArrays);
     // 投票済み
     if (userHasVoted === true) {
       console.log(`ID ${userSocketId} は、投票者配列${hasVotedOption}にいます🙋`);
@@ -233,7 +232,7 @@ function createVoteArrays(surveyPost) {
 }
 
 // -ユーザーが既にvoteしているか確認
-function checkVote(userSocketId, voteArrays) {
+function checkVoteStatus(userSocketId, voteArrays) {
   let hasVotedOption;
   let userHasVoted = false;
   voteArrays.forEach((voteOptArray, index) => {
@@ -253,7 +252,7 @@ function checkVote(userSocketId, voteArrays) {
           hasVotedOption = index;
           userHasVoted = true;
         } else {
-          console.log('checkVote配列じゃないし、一致もしない');
+          console.log('checkVoteStatus配列じゃないし、一致もしない');
         }
       }
     });
@@ -413,5 +412,4 @@ function handleErrors(error, custonMsg = '') {
 server.listen(PORT, () => {
   console.log('listening on *:' + PORT);
 });
-
 
