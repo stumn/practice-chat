@@ -22,7 +22,6 @@
       <span id="status"></span>
     </div>
 
-    <!-- ↓formタグのactionは送信先を指定 セキュリティとかの理由でactionの""は空白にする-->
     <form id="chatForm" action="">
       <input id="nickname" name="name" placeholder="ニックネーム">
       <input id="input" autocomplete="off" placeholder="メッセージ" pattern=".*\S+.*" required>
@@ -46,15 +45,15 @@
   <script>
     const socket = io();
 
-    //フォーム系の取得 
+    // html要素の取得 
     const messageLists = document.getElementById('messageLists');
     const chatForm = document.getElementById('chatForm');
     const nickname = document.getElementById('nickname');
     const input = document.getElementById('input');
     const surveyForm = document.getElementById('surveyForm');
 
-    // ★ログイン時★
-    //プロンプト　ログインで名前を入力・サーバーに送信
+    // ★ログイン時
+    // プロンプト　ログインで名前を入力・サーバーに送信
     const name = prompt("名前を入力してください", "");
     socket.emit('login', name);
     document.getElementById('login-name').textContent = 'ログイン名： ' + name;
@@ -77,15 +76,15 @@
       addTemplateMessage(welcome);
     });
 
-    // ★タイピングステータス★
+    // ★タイピングステータス
     const status = document.getElementById('status');
 
-    //タイピングイベント送信
+    // タイピングイベント送信
     input.addEventListener('input', (event) => {
       socket.emit('typing');
     });
 
-    //タイピングイベント受信＆表示
+    // タイピングイベント受信＆表示
     socket.on('typing', (name) => {
       typingUsers.set(name, new Date());
     })
@@ -109,8 +108,10 @@
       }
     }
 
-    // <li>を作る
+    // ★メッセージリストに追加する
     function addMessageToList(message) {
+
+      // 1 name + message(or question)
       const item = document.createElement('li');
       let nameAndMsg = '[' + message.name + '] ' + message.msg;
       let isSurvey = false;
@@ -123,13 +124,12 @@
       const messageText = makeMessageTextElement(nameAndMsg);
       item.appendChild(messageText);
 
-      //アンケートの場合surveyContainer
-      if (isSurvey) {
+      if (isSurvey) { // (2) case question => options and votes
         const surveyContainer = makeSurveyContainerElement(message);
         item.appendChild(surveyContainer);
       }
 
-      //favContainer
+      // 3 favorite button and like counts
       const favContainer = makeFavContainerElement(message);
       item.appendChild(favContainer);
 
@@ -139,8 +139,8 @@
       item.id = message._id;
       return item;
     }
-
-    // message-text　spanを作成
+    
+    // 1
     function makeMessageTextElement(nameAndMsg) {
       const messageText = document.createElement('span');
       messageText.classList.add('message-text');
@@ -148,7 +148,7 @@
       return messageText;
     }
 
-    // survey-container　spanを作成
+    // (2)
     function makeSurveyContainerElement(message) {
       const surveyContainer = document.createElement('span');
       surveyContainer.classList.add('survey-container');
@@ -175,7 +175,7 @@
       return surveyContainer;
     }
 
-    // fav-container  spanを作成
+    // 3
     function makeFavContainerElement(message) {
       const favContainer = document.createElement('span');
       favContainer.classList.add('fav-container');
@@ -190,11 +190,6 @@
       favCount.classList.add('fav-count');
 
       favCount.textContent = message.likes >= 1 ? message.likes : 0;
-      // if (message.count >= 1) {
-      //   favCount.textContent = message.count;
-      // } else {
-      //   favCount.textContent = 0;
-      // }
 
       favContainer.appendChild(favButton);
       favContainer.appendChild(favCount);
@@ -202,7 +197,7 @@
       return favContainer;
     }
 
-    // テンプレートメッセージ作成関数(fav無し)
+    // テンプレートメッセージ作成関数(※fav無し)
     function addTemplateMessage(templateMsg) {
       const item = document.createElement('li');
       item.textContent = templateMsg;
@@ -210,7 +205,7 @@
       window.scrollTo(0, document.body.scrollHeight);
     }
 
-    // チャットメッセージをサーバーに送信
+    // ★チャットメッセージをサーバーに送信
     chatForm.addEventListener('submit', (event) => {
       event.preventDefault();
       socket.emit('chat message', nickname.value, input.value);
@@ -223,7 +218,7 @@
       item.id = post._id;
     });
 
-    // アンケート投稿をサーバーに送信
+    // ★アンケート投稿をサーバーに送信
     surveyForm.addEventListener('submit', (event) => {
       event.preventDefault();
       const question = document.getElementById('surveyQuestion').value;
@@ -236,29 +231,22 @@
 
     // アンケート投稿をサーバーから受信
     socket.on('survey_post', (surveyPost) => {
-      console.log(surveyPost);
       const item = addMessageToList(surveyPost);
       item.id = surveyPost._id;
     });
 
-    // 投票を受信
+    // ★投票を受信
     socket.on('updateVote', (voteData) => {
-      console.log(voteData);
-      console.log(voteData._id);
       const item = document.getElementById(voteData._id);
-      console.log(item);
       for (let i = 0; i < 3; i++) {
         const surveyNum = item.querySelector(`.survey-container .survey-num-${i + 1}`);
         surveyNum.textContent = voteData[`count${i}`];
       }
     });
 
-    // いいね受信
+    // ★いいね受信
     socket.on('updatefav', (favData) => {
-      console.log(favData);
-      console.log(favData._id);
       const item = document.getElementById(favData._id);
-      console.log(item);
       const favCount = item.querySelector('.fav-container span');
       favCount.textContent = favData.count;
     });
@@ -271,19 +259,12 @@
 
     // アラート
     socket.on('alert', (alertMsg) => {
-      console.log(alertMsg);
       alert(alertMsg);
     });
 
     // ダイアログ
     socket.on('dialog_to_html', (dialogMsg) => {
-      console.log(dialogMsg);
-      if (confirm(dialogMsg)) {
-        socket.emit('dialog_to_js', true);
-      }
-      else {
-        socket.emit('dialog_to_js', false);
-      }
+      socket.emit('dialog_to_js', confirm(dialogMsg) ? true : false);
     });
 
     // ディスコネクト受信

@@ -231,8 +231,6 @@ function createVoteArrays(surveyPost) {
   voteArrays.push(surveyPost.voteOpt0);
   voteArrays.push(surveyPost.voteOpt1);
   voteArrays.push(surveyPost.voteOpt2);
-
-  console.log('確認（二次元配列）👀' + voteArrays);
   return voteArrays;
 }
 
@@ -269,12 +267,10 @@ function checkVoteStatus(userSocketId, voteArrays) {
 async function handle_Voted_User(option, hasVotedOption, socket, voteArrays, surveyPost) {
   //同じ選択肢に投票済み
   if (option === hasVotedOption) {
-    console.log('投票済みと「同じ」選択肢 ⇒ 📢');
     socket.emit('alert', '同じ選択肢には投票できません');
   }
   //違う選択肢に投票済み
   else {
-    console.log('投票済みとは「違う」選択肢 ⇒ ❓');
     socket.emit('dialog_to_html', '投票を変更しますか？');
     const answer = await new Promise(resolve => {
       socket.on('dialog_to_js', resolve);
@@ -307,7 +303,6 @@ function calculate_VoteSum(voteArrays, msgId = '') {
   for (let i = 0; i < voteArrays.length; i++) {
     voteSums[i] = voteArrays[i].length;
   }
-  console.log(`投票ポスト🧮msgId: ${msgId} 投票数合計: ${voteSums.join(' ')}`);
   return voteSums;
 }
 
@@ -334,7 +329,7 @@ async function processFavEvent(msgId, userSocketId, socket) {
 
     // いいね合計を計算
     const favSum = await calculate_FavSum(favArray);
-    console.log('いいね追加完了🧮msgId: ' + msgId + 'いいね合計: ' + favSum);
+
     // 返り値
     return {
       _id: favPost._id,
@@ -360,19 +355,19 @@ async function findFavPost(msgId) {
 // -ユーザーのいいね状況に合わせて処理
 async function handle_differentSituation_Fav(favArray, userSocketId, favPost, socket) {
   if (favPost.likes.length === 0) {
-    console.log('まだ誰一人いいねしていない🥹');
+    // console.log('まだ誰一人いいねしていない🥹');
     favArray.push({ userSocketId: userSocketId, fav: 1 });
     console.log('😡' + favArray);
     await favPost.save();
     return;
   } else {
-    console.log('誰かは良いねしてる😳');
+    // console.log('誰かは良いねしてる😳');
     const retrieve = favArray.find(item => item.userSocketId === userSocketId);
     if (retrieve == null) {
       handleErrors(error, 'error in handle_differentSituation_Fav');
       return;
     } else {
-      console.log('既にいいねしてる💕');
+      // console.log('既にいいねしてる💕');
       if (retrieve.fav >= FAVORITE_MAX) {
         console.log('既に10回いいねしてる💘');
         socket.emit('alert', `${FAVORITE_MAX}回以上いいねは出来ません`);

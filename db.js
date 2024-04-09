@@ -13,27 +13,18 @@ mongoose.connect(MONGODB_URL, { useNewUrlParser: true, useUnifiedTopology: true 
 
 // オプション設定
 const options = {
-    timestamps: true, // データの作成時刻・更新時刻を記録する
-    toObject: { // データの id を使いやすく後で使いやすいようにつけてもらうための設定
+    timestamps: true,
+    toObject: {
         virtuals: true,
         versionKey: false,
         // transform: (_, ret) => { delete ret._id; return ret; }
     }
 };
 
-// // いいね何回でも押せるVer
-// const postSchema = new mongoose.Schema({
-//     name: String,                         //投稿者の名前
-//     msg: String,
-//     question: String,
-//     options: Array,
-//     count: { type: Number, default: 0}
-// }, options);
-
-// いいね一回だけVer
+// いいね
 const favSchema = new mongoose.Schema({
-    userSocketId: String,                  //いいねした人のsocket.id
-    fav: { type: Number, default: 0 } //いいねの回数
+    userSocketId: String,
+    fav: { type: Number, default: 0 }
 });
 
 const postSchema = new mongoose.Schema({
@@ -42,10 +33,10 @@ const postSchema = new mongoose.Schema({
     question: String,
     options: Array,
     likes: [{type: favSchema, default: () => ({})}],
-    // voteOptions: [[voteSchema]]　2次元配列の拡張案
     voteOpt0: [String],
     voteOpt1: [String],
     voteOpt2: [String]
+    // voteOptions: [[voteSchema]]　2次元配列の拡張案
 }, options);
 
 // その形式のデータを保存・読み出しするために必要なモデルを作る
