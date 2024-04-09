@@ -146,15 +146,15 @@ async function receiveSend_Survey(data, name) {
   const optionTexts = [data.options[0], data.options[1], data.options[2]];
   try {
     const surveyPost = await saveRecord(name, '', Q, optionTexts);
-    const x = organizeLogs(surveyPost);
-    console.log('アンケート保存しました📄:' + x.question + x._id);
-    io.emit('survey_post', x);
+    const xxx = organizeLogs(surveyPost);
+    console.log('アンケート保存しました📄:' + xxx.question + xxx._id);
+    io.emit('survey_post', xxx);
   } catch (error) {
     handleErrors(error, 'アンケート受送信');
   }
 }
 
-function organizeLogs(post){
+function organizeLogs(post) {
   const pastFavSum = calculate_FavSum(post.likes);// いいね合計
   const voteSums = calculate_VoteSum(createVoteArrays(post));// 投票合計
 
@@ -163,8 +163,8 @@ function organizeLogs(post){
     _id: post._id,
     name: post.name,
     msg: post.msg,
-    question:post.question,
-    options: post.options, 
+    question: post.question,
+    options: post.options,
     likes: pastFavSum,
     voteSums: voteSums
   };
@@ -186,19 +186,24 @@ async function processVoteEvent(msgId, option, userSocketId, socket) {
   try {
     // ポストを特定
     const surveyPost = await findSurveyPost(msgId);
+
     // 投票配列
     let voteArrays = createVoteArrays(surveyPost);
+
     // ユーザーが投票済みか否か
     let { userHasVoted, hasVotedOption } = checkVoteStatus(userSocketId, voteArrays);
+
     // 投票済み
     if (userHasVoted === true) {
       console.log(`ID ${userSocketId} は、投票者配列${hasVotedOption}にいます🙋`);
       await handle_Voted_User(option, hasVotedOption, socket, voteArrays, surveyPost);
     }
+
     // まだ投票したこと無い
     else if (userHasVoted === false) {
       handle_NeverVoted_User(option, surveyPost, voteArrays, userSocketId);
     }
+    
     // 投票合計を計算
     let voteSums = calculate_VoteSum(voteArrays, msgId);
 
@@ -236,65 +241,57 @@ function createVoteArrays(surveyPost) {
 
 // -ユーザーが既にvoteしているか確認
 function checkVoteStatus(userSocketId, voteArrays) {
-  let hasVotedOption;
   let userHasVoted = false;
-  voteArrays.forEach((voteOptArray, index) => {
-    voteOptArray.forEach((voteOpt) => {
-      if (Array.isArray(voteOpt)) {
-        if (voteOpt.some(obj => obj.id === userSocketId)) {
-          console.log('配列で一致');
-          hasVotedOption = index;
-          userHasVoted = true;
-        } else {
-          console.log('配列だけど、一致しないね');
-        }
-      }
-      else {
-        if (voteOpt === userSocketId) {
-          console.log('配列じゃないけど、一致');
-          hasVotedOption = index;
-          userHasVoted = true;
-        } else {
-          console.log('checkVoteStatus配列じゃないし、一致もしない');
-        }
-      }
-    });
+  let votedOptionIndex = voteArrays.findIndex(xxx => {
+    const index = Array.isArray(xxx)
+      ? xxx.find(obj => obj.id === userSocketId)
+      : xxx === userSocketId;
+
+    if (index) {
+      userHasVoted = true;
+      console.log('投票していたことが発覚' + (Array.isArray(xxx) ? '配列で' : '配列ではない'));
+    }
+
+    return index;
   });
-  return { userHasVoted, hasVotedOption };
+
+  return { userHasVoted, votedOptionIndex };
 }
 
 // -投票済みユーザーの投票
 async function handle_Voted_User(option, hasVotedOption, socket, voteArrays, surveyPost) {
-  //同じ選択肢に投票済み
+
+  // 同じ選択肢に投票済み
   if (option === hasVotedOption) {
     socket.emit('alert', '同じ選択肢には投票できません');
   }
-  //違う選択肢に投票済み
-  else {
-    socket.emit('dialog_to_html', '投票を変更しますか？');
-    const answer = await new Promise(resolve => {
-      socket.on('dialog_to_js', resolve);
-    });
-    //投票済みの選択肢を1減らし、新しい選択肢に1増やす
-    if (answer === true) {
-      voteArrays[hasVotedOption].pull(socket.id);
-      voteArrays[option].push(socket.id);
-      await surveyPost.save();
-    }
+
+  // 違う選択肢に投票済み
+  socket.emit('dialog_to_html', '投票を変更しますか？');
+  const answer = await new Promise(resolve => {
+    socket.on('dialog_to_js', resolve);
+  });
+  // 変更希望 => 投票済みの選択肢を1減らし、新しい選択肢に1増やす
+  if (answer === true) {
+    voteArrays[hasVotedOption].pull(socket.id);
+    voteArrays[option].push(socket.id);
+    await surveyPost.save();
   }
 }
 
 // -未投票ユーザーの投票
 async function handle_NeverVoted_User(option, surveyPost, voteArrays, userSocketId) {
   console.log(`ID ${userSocketId} は、まだ1度も投票していません🙅`);
-  if (option >= 0 && option < voteArrays.length) {
-    voteArrays[option].push(userSocketId);
-    console.log(`ID ${userSocketId} は、投票者配列${option}に追加されました🙋`);
-    await surveyPost.save();
-    console.log('falseFuction投票保存完了🙆: ' + surveyPost);
-  } else {
+
+  // あり得ないと思うけど、エラー処理（選択肢がマイナスや、3以上などの存在しない数）
+  if (option < 0 || option >= voteArrays.length) {
     handleErrors(error, '無効なオプション');
   }
+
+  voteArrays[option].push(userSocketId);
+  console.log(`ID ${userSocketId} は、投票者配列${option}に追加されました🙋`);
+  await surveyPost.save();
+  console.log('falseFuction投票保存完了🙆: ' + surveyPost);
 }
 
 // -投票処理後の投票数計算
@@ -353,34 +350,34 @@ async function findFavPost(msgId) {
 }
 
 // -ユーザーのいいね状況に合わせて処理
-async function handle_differentSituation_Fav(favArray, userSocketId, favPost, socket) {
+async function handle_differentSituation_Fav(favoriteUsers, userSocketId, favPost, socket) {
+
+  // いいねがまだない場合
   if (favPost.likes.length === 0) {
-    // console.log('まだ誰一人いいねしていない🥹');
-    favArray.push({ userSocketId: userSocketId, fav: 1 });
-    console.log('😡' + favArray);
+    favoriteUsers.push({ userSocketId: userSocketId, fav: 1 });
+    console.log('はじめてのいいねを追加しました: ' + favoriteUsers);
     await favPost.save();
     return;
-  } else {
-    // console.log('誰かは良いねしてる😳');
-    const retrieve = favArray.find(item => item.userSocketId === userSocketId);
-    if (retrieve == null) {
-      handleErrors(error, 'error in handle_differentSituation_Fav');
-      return;
-    } else {
-      // console.log('既にいいねしてる💕');
-      if (retrieve.fav >= FAVORITE_MAX) {
-        console.log('既に10回いいねしてる💘');
-        socket.emit('alert', `${FAVORITE_MAX}回以上いいねは出来ません`);
-        return;
-      }
-      else {
-        console.log('いいねが1回以上10回未満なので+1💓');
-        retrieve.fav += 1;
-        await favPost.save();
-        return;
-      }
-    }
   }
+
+  // 既にいいねがある場合
+  const existingUser = favoriteUsers.find(item => item.userSocketId === userSocketId);
+
+  // ユーザーが見つからない場合はエラー処理
+  if (existingUser == null) {
+    handleErrors(error, 'error in handle_differentSituation_Fav');
+    return;
+  }
+
+  // いいねの上限に達している場合
+  if (existingUser.fav >= FAVORITE_MAX) {
+    socket.emit('alert', `${FAVORITE_MAX}回以上いいねは出来ません`);
+    return;
+  }
+
+  // いいねを追加
+  existingUser.fav += 1;
+  await favPost.save();
 }
 
 // -いいね処理後のいいね数計算
