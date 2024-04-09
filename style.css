@@ -24,8 +24,8 @@
        border-radius: 1rem;
    }
 
-   /* form */
-   #form {
+   /* chatForm */
+   #chatForm {
        background: rgba(0, 0, 0, 0.15);
        padding: 0.25rem;
        position: fixed;
@@ -51,7 +51,7 @@
        outline: none;
    }
 
-   #form>button {
+   #chatForm>button {
        background: #385CA8;
        border: none;
        padding: 0 1rem;
@@ -65,32 +65,32 @@
 
 
    /* MSG */
-   #messages {
+   #messageLists {
        list-style-type: none;
        margin: 0;
        padding: 0;
    }
 
-   #messages>li {
+   #messageLists>li {
        padding: 0.5rem 1rem;
        position: relative;
        display: flex;
        align-items: center;
    }
 
-   #messages>li span.message-text {
+   #messageLists>li span.message-text {
        flex: 1;
        justify-content: space-between;
        align-items: center;
        margin-right: 10px;
    }
 
-   #messages>li span.survey-container {
+   #messageLists>li span.survey-container {
        flex: auto;
        align-items: left;
    }
 
-   #messages>li span.survey-container button {
+   #messageLists>li span.survey-container button {
        background-color: blue;
        border: none;
        color: white;
@@ -100,19 +100,19 @@
        outline: none;
    }
 
-   #messages>li span.survey-num span{
+   #messageLists>li span.survey-num span{
          margin-left: 5px;
          font-weight: bold;
          color: blue;
    }
 
-   #messages>li span.fav-container {
+   #messageLists>li span.fav-container {
        display: flex;
        justify-content: flex-end
    }
 
 
-   #messages>li span.fav-container button {
+   #messageLists>li span.fav-container button {
        background-color: #ff69b4;
        border: none;
        color: white;
@@ -123,13 +123,13 @@
        outline: none;
    }
 
-   #messages>li span.fav-count {
+   #messageLists>li span.fav-count {
        font-weight: bold;
        color: #ff69b4;
        display: flex;
        justify-content: flex-end;
    }
 
-   #messages>li:nth-child(odd) {
+   #messageLists>li:nth-child(odd) {
        background: ivory;
    }

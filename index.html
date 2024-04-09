@@ -17,19 +17,19 @@
   </header>
 
   <main>
-    <ul id="messages"></ul>
+    <ul id="messageLists"></ul>
     <div>
       <span id="status"></span>
     </div>
 
     <!-- ↓formタグのactionは送信先を指定 セキュリティとかの理由でactionの""は空白にする-->
-    <form id="form" action="">
+    <form id="chatForm" action="">
       <input id="nickname" name="name" placeholder="ニックネーム">
       <input id="input" autocomplete="off" placeholder="メッセージ" pattern=".*\S+.*" required>
       <button>Send</button>
     </form>
 
-    <button onclick="toggleSurveyForm()">アンケート作成</button>
+    <button onclick="toggleSurveyFormVisibility()">アンケート作成</button>
 
     <form id="surveyForm" style="display: none;" action="">
       <input id="surveyQuestion" placeholder="アンケート質問">
@@ -47,103 +47,52 @@
     const socket = io();
 
     //フォーム系の取得 
-    const messages = document.getElementById('messages');
-    const form = document.getElementById('form');
+    const messageLists = document.getElementById('messageLists');
+    const chatForm = document.getElementById('chatForm');
     const nickname = document.getElementById('nickname');
     const input = document.getElementById('input');
     const surveyForm = document.getElementById('surveyForm');
+
+    // ★ログイン時★
+    //プロンプト　ログインで名前を入力・サーバーに送信
+    const name = prompt("名前を入力してください", "");
+    socket.emit('login', name);
+    document.getElementById('login-name').textContent = 'ログイン名： ' + name;
+
+    // オンラインメンバー
+    socket.on('onlineUsers', (onlines) => {
+      document.getElementById('onlines').textContent = onlines;
+    });
+
+    // 過去ログ受信
+    socket.on('pastLogs', (pastArray) => {
+      pastArray.forEach(element => {
+        addMessageToList(element);
+      });
+      addTemplateMessage('-----⇊ ここから参加 ⇊-----');
+    });
+
+    // いらっしゃい！
+    socket.on('welcome', (welcome) => {
+      addTemplateMessage(welcome);
+    });
+
+    // ★タイピングステータス★
     const status = document.getElementById('status');
 
-    // listを作る
-    function makeList(msg, message, isSurvey) {
-      const item = document.createElement('li');
+    //タイピングイベント送信
+    input.addEventListener('input', (event) => {
+      socket.emit('typing');
+    });
 
-      const messageText = makeMessageText(msg, message);
-      item.appendChild(messageText);
+    //タイピングイベント受信＆表示
+    socket.on('typing', (name) => {
+      typingUsers.set(name, new Date());
+    })
 
-      if (isSurvey) {
-        const surveyContainer = makeSurveyContainer(msg, message);
-        item.appendChild(surveyContainer);
-      }
-
-      const favContainer = makeFavContainer(message);
-      item.appendChild(favContainer);
-
-      window.scrollTo(0, document.body.scrollHeight);
-
-      messages.appendChild(item);
-      item.id = message._id;
-      return item;
-    }
-
-    // message-text　spanを作成
-    function makeMessageText(msg, message) {
-      const messageText = document.createElement('span');
-      messageText.classList.add('message-text');
-      messageText.textContent = msg;
-      return messageText;
-    }
-
-    // survey-container　spanを作成
-    function makeSurveyContainer(msg, message) {
-      const surveyContainer = document.createElement('span');
-      surveyContainer.classList.add('survey-container');
-      for (let i = 0; i < message.options.length; i++) {
-        //button要素を作成・クラスを追加・選択肢テキストを追加
-        const surveyOption = document.createElement('button');
-        surveyOption.classList.add('survey-option');
-        surveyOption.textContent = message.options[i];
-
-        //span要素を作成・インデックス番号をクラス名に追加・投票数を追加
-        const surveyNum = document.createElement('span');
-        surveyNum.classList.add('survey-num-' + (i + 1));
-        surveyNum.textContent = 0;
-
-        //buttonにクリックイベントを追加・サーバーに投票を送信
-        surveyOption.addEventListener('click', () => {
-          socket.emit('survey', message._id, i);
-        });
-
-        //span要素にbutton要素を追加・span要素にspan要素を追加
-        surveyContainer.appendChild(surveyOption);
-        surveyContainer.appendChild(surveyNum);
-      }
-      return surveyContainer;
-    }
-
-    // fav-container  spanを作成
-    function makeFavContainer(message) {
-      const favContainer = document.createElement('span');
-      favContainer.classList.add('fav-container');
-
-      const favButton = document.createElement('button');
-      favButton.textContent = '♡';
-      favButton.addEventListener('click', e => {
-        socket.emit('fav', message._id);
-      });
-
-      const favCount = document.createElement('span');
-      favCount.classList.add('fav-count');
-
-      if (message.count >= 1) {
-        favCount.textContent = message.count;
-      } else {
-        favCount.textContent = 0;
-      }
-
-      favContainer.appendChild(favButton);
-      favContainer.appendChild(favCount);
-
-      return favContainer;
-    }
-
-    // テンプレートメッセージ作成関数
-    function addTemplateMessage(msg) {
-      const item = document.createElement('li');
-      item.textContent = msg;
-      messages.appendChild(item);
-      window.scrollTo(0, document.body.scrollHeight);
-    }
+    // タイピングユーザの情報を保持
+    const typingUsers = new Map();
+    setInterval(updateStatus, 1000); // 1秒毎タイピングユーザのステータス更新
 
     // タイピングユーザのステータスを定期更新
     function updateStatus() {
@@ -160,53 +109,109 @@
       }
     }
 
-    // アンケート作成の表示切り替え関数
-    function toggleSurveyForm() {
-      const surveyFormElement = document.getElementById('surveyForm');
-      surveyFormElement.style.display = surveyFormElement.style.display === 'none' ? 'block' : 'none';
+    // <li>を作る
+    function addMessageToList(message) {
+      const item = document.createElement('li');
+      let nameAndMsg = '[' + message.name + '] ' + message.msg;
+      let isSurvey = false;
+
+      if(message.question){
+        isSurvey = true;
+        nameAndMsg = '[' + message.name + ']' + message.question;
+      }
+
+      const messageText = makeMessageTextElement(nameAndMsg);
+      item.appendChild(messageText);
+
+      //アンケートの場合surveyContainer
+      if (isSurvey) {
+        const surveyContainer = makeSurveyContainerElement(message);
+        item.appendChild(surveyContainer);
+      }
+
+      //favContainer
+      const favContainer = makeFavContainerElement(message);
+      item.appendChild(favContainer);
+
+      window.scrollTo(0, document.body.scrollHeight);
+
+      messageLists.appendChild(item);
+      item.id = message._id;
+      return item;
     }
 
-    //プロンプト　ログインで名前を入力・サーバーに送信
-    const name = prompt("名前を入力してください", "");
-    socket.emit('login', name);
-    document.getElementById('login-name').textContent = 'ログイン名： ' + name;
+    // message-text　spanを作成
+    function makeMessageTextElement(nameAndMsg) {
+      const messageText = document.createElement('span');
+      messageText.classList.add('message-text');
+      messageText.textContent = nameAndMsg;
+      return messageText;
+    }
 
-    // オンラインメンバー
-    socket.on('onlineUsers', (onlines) => {
-      document.getElementById('onlines').textContent = onlines;
-    });
+    // survey-container　spanを作成
+    function makeSurveyContainerElement(message) {
+      const surveyContainer = document.createElement('span');
+      surveyContainer.classList.add('survey-container');
+      for (let i = 0; i < message.options.length; i++) {
+        //[button]要素を作成・クラスを追加・選択肢テキストを追加
+        const surveyOption = document.createElement('button');
+        surveyOption.classList.add('survey-option');
+        surveyOption.textContent = message.options[i];
 
-    // 過去ログ受信
-    socket.on('pastLogs', (Array) => {
-      Array.forEach(element => {
-        const eM = '[' + element.name + '] ' + element.msg;
-        console.log(eM);
-        makeList(eM, element, false);
+        //[数字]span要素を作成・インデックス番号をクラス名に追加・投票数を追加
+        const surveyNum = document.createElement('span');
+        surveyNum.classList.add('survey-num-' + (i + 1));
+        surveyNum.textContent = message.voteSums[i];
+
+        //buttonにクリックイベントを追加・サーバーに投票を送信
+        surveyOption.addEventListener('click', () => {
+          socket.emit('survey', message._id, i);
+        });
+
+        //span要素にbutton要素を追加・span要素にspan要素を追加
+        surveyContainer.appendChild(surveyOption);
+        surveyContainer.appendChild(surveyNum);
+      }
+      return surveyContainer;
+    }
+
+    // fav-container  spanを作成
+    function makeFavContainerElement(message) {
+      const favContainer = document.createElement('span');
+      favContainer.classList.add('fav-container');
+
+      const favButton = document.createElement('button');
+      favButton.textContent = '♡';
+      favButton.addEventListener('click', e => {
+        socket.emit('fav', message._id);
       });
-      addTemplateMessage('-----⇊ ここから参加 ⇊-----');
-    });
 
-    // いらっしゃい！
-    socket.on('welcome', (welcome) => {
-      addTemplateMessage(welcome);
-    });
+      const favCount = document.createElement('span');
+      favCount.classList.add('fav-count');
 
-    //タイピングイベント送信
-    input.addEventListener('input', (event) => {
-      socket.emit('typing');
-    });
+      favCount.textContent = message.likes >= 1 ? message.likes : 0;
+      // if (message.count >= 1) {
+      //   favCount.textContent = message.count;
+      // } else {
+      //   favCount.textContent = 0;
+      // }
 
-    //タイピングイベント受信＆表示
-    socket.on('typing', (name) => {
-      typingUsers.set(name, new Date());
-    })
+      favContainer.appendChild(favButton);
+      favContainer.appendChild(favCount);
 
-    // タイピングユーザの情報を保持
-    const typingUsers = new Map();
-    setInterval(updateStatus, 1000); // 1秒毎タイピングユーザのステータス更新
+      return favContainer;
+    }
+
+    // テンプレートメッセージ作成関数(fav無し)
+    function addTemplateMessage(templateMsg) {
+      const item = document.createElement('li');
+      item.textContent = templateMsg;
+      messageLists.appendChild(item);
+      window.scrollTo(0, document.body.scrollHeight);
+    }
 
     // チャットメッセージをサーバーに送信
-    form.addEventListener('submit', (event) => {
+    chatForm.addEventListener('submit', (event) => {
       event.preventDefault();
       socket.emit('chat message', nickname.value, input.value);
       input.value = '';
@@ -214,8 +219,7 @@
 
     // チャット受信
     socket.on('chatLogs', (post) => {
-      const eM = '[' + post.name + '] ' + post.msg;
-      const item = makeList(eM, post, false);
+      const item = addMessageToList(post);
       item.id = post._id;
     });
 
@@ -223,18 +227,18 @@
     surveyForm.addEventListener('submit', (event) => {
       event.preventDefault();
       const question = document.getElementById('surveyQuestion').value;
-      const option1 = document.getElementById('option1').value;
-      const option2 = document.getElementById('option2').value;
-      const option3 = document.getElementById('option3').value;
-      socket.emit('submitSurvey', { question: question, options: [option1, option2, option3] });
-      toggleSurveyForm();
+      const optionText_1 = document.getElementById('option1').value;
+      const optionText_2 = document.getElementById('option2').value;
+      const optionText_3 = document.getElementById('option3').value;
+      socket.emit('submitSurvey', { question: question, options: [optionText_1, optionText_2, optionText_3] });
+      toggleSurveyFormVisibility();
     });
 
-    // アンケートブロードキャストを受信
-    socket.on('survey_msg', (p) => {
-      const msg = '[' + p.name + '] ' + p.question;
-      const item = makeList(msg, p, true);
-      item.id = p._id;
+    // アンケート投稿をサーバーから受信
+    socket.on('survey_post', (surveyPost) => {
+      console.log(surveyPost);
+      const item = addMessageToList(surveyPost);
+      item.id = surveyPost._id;
     });
 
     // 投票を受信
@@ -244,7 +248,7 @@
       const item = document.getElementById(voteData._id);
       console.log(item);
       for (let i = 0; i < 3; i++) {
-        const surveyNum = item.querySelector(`.survey-container .survey-num-${i+1}`);
+        const surveyNum = item.querySelector(`.survey-container .survey-num-${i + 1}`);
         surveyNum.textContent = voteData[`count${i}`];
       }
     });
@@ -259,16 +263,22 @@
       favCount.textContent = favData.count;
     });
 
+    // アンケート作成の表示切り替え関数
+    function toggleSurveyFormVisibility() {
+      const surveyFormElement = document.getElementById('surveyForm');
+      surveyFormElement.style.display = surveyFormElement.style.display === 'none' ? 'block' : 'none';
+    }
+
     // アラート
-    socket.on('alert', (msg) => {
-      console.log(msg);
-      alert(msg);
+    socket.on('alert', (alertMsg) => {
+      console.log(alertMsg);
+      alert(alertMsg);
     });
 
     // ダイアログ
-    socket.on('dialog_to_html', (msg) => {
-      console.log(msg);
-      if (confirm(msg)) {
+    socket.on('dialog_to_html', (dialogMsg) => {
+      console.log(dialogMsg);
+      if (confirm(dialogMsg)) {
         socket.emit('dialog_to_js', true);
       }
       else {

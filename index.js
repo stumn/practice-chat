@@ -98,25 +98,13 @@ async function getPastLogs() {
   try {
     const posts = await Post.find({}).limit(10).sort({ createdAt: -1 });
     posts.reverse();
-    const pastLogs = await Promise.all(posts.map(organizePastLogs));
+    const pastLogs = await Promise.all(posts.map(organizeLogs));
+    console.log('過去ログ整理完了');
     return pastLogs;
   } catch (error) {
     handleErrors(error, '過去ログ');
     throw error;
   }
-}
-
-// 過去ログ・データ整える
-async function organizePastLogs(post) {
-  const pastFav = post.likes;
-  const pastSum = calculate_FavSum(pastFav);
-
-  return {
-    _id: post._id,
-    name: post.name,
-    msg: post.msg,
-    count: pastSum
-  };
 }
 
 // データベースにレコードを保存
@@ -155,14 +143,31 @@ async function receiveSend_Chat(name, nickname, msg) {
 // アンケートメッセージ受送信
 async function receiveSend_Survey(data, name) {
   const Q = data.question;
-  const op = [data.options[0], data.options[1], data.options[2]];
+  const optionTexts = [data.options[0], data.options[1], data.options[2]];
   try {
-    const p = await saveRecord(name, '', Q, op);
-    console.log('アンケート保存しました📄:' + p.question + p.id);
-    io.emit('survey_msg', p);
+    const surveyPost = await saveRecord(name, '', Q, optionTexts);
+    const x = organizeLogs(surveyPost);
+    console.log('アンケート保存しました📄:' + x.question + x._id);
+    io.emit('survey_post', x);
   } catch (error) {
     handleErrors(error, 'アンケート受送信');
   }
+}
+
+function organizeLogs(post){
+  const pastFavSum = calculate_FavSum(post.likes);// いいね合計
+  const voteSums = calculate_VoteSum(createVoteArrays(post));// 投票合計
+
+  // 返り値
+  return {
+    _id: post._id,
+    name: post.name,
+    msg: post.msg,
+    question:post.question,
+    options: post.options, 
+    likes: pastFavSum,
+    voteSums: voteSums
+  };
 }
 
 // ★★アンケート投票受送信
@@ -227,7 +232,7 @@ function createVoteArrays(surveyPost) {
   voteArrays.push(surveyPost.voteOpt1);
   voteArrays.push(surveyPost.voteOpt2);
 
-  console.log('確認（二次元配列）🔍' + voteArrays);
+  console.log('確認（二次元配列）👀' + voteArrays);
   return voteArrays;
 }
 
@@ -297,7 +302,7 @@ async function handle_NeverVoted_User(option, surveyPost, voteArrays, userSocket
 }
 
 // -投票処理後の投票数計算
-function calculate_VoteSum(voteArrays, msgId) {
+function calculate_VoteSum(voteArrays, msgId = '') {
   let voteSums = [];
   for (let i = 0; i < voteArrays.length; i++) {
     voteSums[i] = voteArrays[i].length;
@@ -394,7 +399,7 @@ function disconnectFunction(socket) {
   let targetName = idsOnlineUsers.find(obj => obj.id === targetId)?.name;
 
   // さようならテンプレ
-  const byeMsg = targetName + ' (' + socket.id + ') ' + 'さん、またね！';
+  const byeMsg = targetName + 'さん、またね！';
   templateMsg('bye', byeMsg);
 
   // オンラインメンバーから削除
