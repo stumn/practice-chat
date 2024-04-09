@@ -203,7 +203,7 @@ async function processVoteEvent(msgId, option, userSocketId, socket) {
     else if (userHasVoted === false) {
       handle_NeverVoted_User(option, surveyPost, voteArrays, userSocketId);
     }
-    
+
     // 投票合計を計算
     let voteSums = calculate_VoteSum(voteArrays, msgId);
 
@@ -226,7 +226,6 @@ async function findSurveyPost(msgId) {
   if (!surveyPost) {
     throw new Error(`投稿ID${msgId}が見つかりませんでした。`);
   }
-  console.log('投票先ポストを特定しました📸' + surveyPost);
   return surveyPost;
 }
 
@@ -241,21 +240,31 @@ function createVoteArrays(surveyPost) {
 
 // -ユーザーが既にvoteしているか確認
 function checkVoteStatus(userSocketId, voteArrays) {
+  let hasVotedOption;
   let userHasVoted = false;
-  let votedOptionIndex = voteArrays.findIndex(xxx => {
-    const index = Array.isArray(xxx)
-      ? xxx.find(obj => obj.id === userSocketId)
-      : xxx === userSocketId;
-
-    if (index) {
-      userHasVoted = true;
-      console.log('投票していたことが発覚' + (Array.isArray(xxx) ? '配列で' : '配列ではない'));
-    }
-
-    return index;
+  voteArrays.forEach((voteOptArray, index) => {
+    voteOptArray.forEach((voteOpt) => {
+      if (Array.isArray(voteOpt)) {
+        if (voteOpt.some(obj => obj.id === userSocketId)) {
+          console.log('配列で一致');
+          hasVotedOption = index;
+          userHasVoted = true;
+        } else {
+          console.log('配列だけど、一致しないね');
+        }
+      }
+      else {
+        if (voteOpt === userSocketId) {
+          console.log('配列じゃないけど、一致');
+          hasVotedOption = index;
+          userHasVoted = true;
+        } else {
+          console.log('checkVoteStatus配列じゃないし、一致もしない');
+        }
+      }
+    });
   });
-
-  return { userHasVoted, votedOptionIndex };
+  return { userHasVoted, hasVotedOption };
 }
 
 // -投票済みユーザーの投票
@@ -265,7 +274,6 @@ async function handle_Voted_User(option, hasVotedOption, socket, voteArrays, sur
   if (option === hasVotedOption) {
     socket.emit('alert', '同じ選択肢には投票できません');
   }
-
   // 違う選択肢に投票済み
   socket.emit('dialog_to_html', '投票を変更しますか？');
   const answer = await new Promise(resolve => {
@@ -277,6 +285,7 @@ async function handle_Voted_User(option, hasVotedOption, socket, voteArrays, sur
     voteArrays[option].push(socket.id);
     await surveyPost.save();
   }
+
 }
 
 // -未投票ユーザーの投票
@@ -345,7 +354,6 @@ async function findFavPost(msgId) {
     handleErrors(error, `fav投稿見つからない${msgId}`);
     return;
   }
-  console.log('ポストが特定できました📸' + favPost.msg);
   return favPost;
 }
 
